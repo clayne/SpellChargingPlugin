@@ -21,8 +21,13 @@ namespace SpellChargingPlugin.States
         /// <param name="diff"></param>
         public override void Update(float diff)
         {
-            var castState = SpellHelper.GetCurrentCastingState(_context.Holder.Character, _context.Spell);
-            switch (castState)
+            var state = SpellHelper.GetHandSpellState(_context.Holder.Character, _context.Slot);
+            if (state == null)
+            {
+                TransitionTo(() => new Cancel(_factory, _context));
+                return;
+            }
+            switch (state.Value.State)
             {
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.Released:
                     this.TransitionTo(() => new Release(_factory, _context));

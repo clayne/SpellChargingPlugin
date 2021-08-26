@@ -12,15 +12,18 @@ namespace SpellChargingPlugin.Core
     {
         public ChargingActor Holder { get; set; }
         public SpellItem Spell { get; set; }
-        Dictionary<ActiveEffect.EffectItem, SpellPower> BasePower { get; set; }
-        Dictionary<ActiveEffect.EffectItem, PowerModifier>  Modifier { get; set; }
-        public State<ChargingSpell> PreviousState { get; set; }
+        public EquippedSpellSlots Slot { get; set; }
         public State<ChargingSpell> CurrentState { get; set; }
 
-        public ChargingSpell(ChargingActor holder, SpellItem spell)
+        private Dictionary<ActiveEffect.EffectItem, SpellPower> BasePower { get; set; }
+        private Dictionary<ActiveEffect.EffectItem, PowerModifier>  Modifier { get; set; }
+        private int ChargeLevel { get; set; } = 0;
+
+        public ChargingSpell(ChargingActor holder, SpellItem spell, EquippedSpellSlots slot)
         {
             Holder = holder;
             Spell = spell;
+            Slot = slot;
             BasePower = new Dictionary<ActiveEffect.EffectItem, SpellPower>();
             Modifier = new Dictionary<ActiveEffect.EffectItem, PowerModifier>();
             foreach (var eff in Spell.Effects)
@@ -54,6 +57,8 @@ namespace SpellChargingPlugin.Core
                 Modifier[eff].Magnitude += BasePower[eff].Magnitude * realPercantage;
                 Modifier[eff].Duration += (int)(BasePower[eff].Duration * realPercantage);
 
+                ++ChargeLevel;
+
                 DebugHelper.Print($"Charge {Spell.Name}.{eff.Effect.Name} bMAG: {Modifier[eff].Magnitude}, bDur: {Modifier[eff].Duration}");
             }
         }
@@ -67,6 +72,12 @@ namespace SpellChargingPlugin.Core
 
                 DebugHelper.Print($"Reset {Spell.Name}");
             }
+            ChargeLevel = 0;
+        }
+
+        public void UpdateVisual()
+        {
+            // todo (NIOverride scale? audio? play cool effect?)
         }
     }
 }

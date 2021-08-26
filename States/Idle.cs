@@ -16,8 +16,10 @@ namespace SpellChargingPlugin.States
 
         public override void Update(float diff)
         {
-            var castState = SpellHelper.GetCurrentCastingState(_context.Holder.Character, _context.Spell);
-            switch (castState)
+            var handState = SpellHelper.GetHandSpellState(_context.Holder.Character, _context.Slot);
+            if (handState == null)
+                return;
+            switch (handState.Value.State)
             {
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.Charged:
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.Concentrating:
