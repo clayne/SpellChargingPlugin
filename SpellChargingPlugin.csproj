@@ -50,6 +50,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Core\ChargingActor.cs" />
+    <Compile Include="Core\ChargingSpell.cs" />
+    <Compile Include="Core\PowerModifier.cs" />
+    <Compile Include="Core\SpellPower.cs" />
     <Compile Include="DebugHelper.cs" />
     <Compile Include="Settings.cs" />
     <Compile Include="SpellCharging.cs" />
@@ -58,10 +62,18 @@
     <Compile Include="SpellActorState.cs" />
     <Compile Include="SpellHelper.cs" />
     <Compile Include="SpellPower.cs" />
+    <Compile Include="StateMachine\IStateHolder.cs" />
+    <Compile Include="StateMachine\State.cs" />
+    <Compile Include="StateMachine\StateFactory.cs" />
+    <Compile Include="States\Cancel.cs" />
+    <Compile Include="States\Charging.cs" />
+    <Compile Include="States\Idle.cs" />
+    <Compile Include="States\Release.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="NetScriptFramework.dll" />
     <Content Include="NetScriptFramework.SkyrimSE.dll" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
