@@ -11,8 +11,11 @@ namespace SpellChargingPlugin
     {
         public static void Print(string message)
         {
-            if(Settings.ShowDebugMessages)
-                MenuManager.ShowHUDMessage(message, null, true);
+            if (Settings.LogDebugMessages)
+            {
+                SpellCharging._logFile.AppendLine(message);
+                //MenuManager.ShowHUDMessage(message, null, true);
+            }
         }
     }
 }

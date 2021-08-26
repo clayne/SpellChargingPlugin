@@ -17,8 +17,8 @@ namespace SpellChargingPlugin.States
         /// <summary>
         /// Reset, clean up and transition to idle state
         /// </summary>
-        /// <param name="diff"></param>
-        public override void Update(float diff)
+        /// <param name="elapsedSeconds"></param>
+        protected override void OnUpdate(float elapsedSeconds)
         {
             _context.Reset();
             TransitionTo(() => new Idle(_factory, _context));

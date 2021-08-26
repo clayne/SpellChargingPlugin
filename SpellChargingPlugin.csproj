@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>embedded</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\..\..\..\..\MO2 - Skyrim SE\mods\DEV\NetScriptFramework\Plugins\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -70,8 +70,8 @@
     <Compile Include="States\Release.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="NetScriptFramework.dll" />
-    <Content Include="NetScriptFramework.SkyrimSE.dll" />
+    <None Include="NetScriptFramework.dll" />
+    <None Include="NetScriptFramework.SkyrimSE.dll" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

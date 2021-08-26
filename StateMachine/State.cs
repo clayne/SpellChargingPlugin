@@ -10,6 +10,7 @@ namespace SpellChargingPlugin.StateMachine
     {
         protected StateFactory<TContext> _factory;
         protected TContext _context;
+        protected float _timeInState = 0f;
 
         public State(StateFactory<TContext> factory, TContext context)
         {
@@ -20,12 +21,20 @@ namespace SpellChargingPlugin.StateMachine
         protected void TransitionTo<T>(Func<T> creator) where T : State<TContext>
         {
             State<TContext> newState = _factory.GetOrCreate(creator);
+            newState._timeInState = 0f;
+            newState.OnEnterState();
 
             DebugHelper.Print($"State change: {_context.CurrentState.GetType().Name} => {newState.GetType().Name}");
 
             _context.CurrentState = newState;
         }
+        public virtual void Update(float elapsedSeconds)
+        {
+            _timeInState += elapsedSeconds;
+            OnUpdate(elapsedSeconds);
+        }
 
-        public abstract void Update(float diff);
+        protected abstract void OnUpdate(float elapsedSeconds);
+        protected virtual void OnEnterState() { }
     }
 }

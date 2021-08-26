@@ -10,33 +10,53 @@ namespace SpellChargingPlugin.Core
 {
     public class ChargingActor
     {
-        public Character Character { get; set; }
+        public Character Character => PlayerCharacter.Instance;
         public ChargingSpell[] Spells { get; set; } // 0 Left, 1 Right
 
-        public ChargingActor(Character character)
+        public ChargingActor()
         {
-            Character = character;
-            Spells = new ChargingSpell[2]; 
+            Spells = new ChargingSpell[2];
         }
 
-        public void Update(float diff)
+        public void Update(float elapsedSeconds)
         {
             var leftSpell = SpellHelper.GetHandSpellState(Character, EquippedSpellSlots.LeftHand)?.Spell;
             var rightSpell = SpellHelper.GetHandSpellState(Character, EquippedSpellSlots.RightHand)?.Spell;
 
-            if(Spells[0].Spell != leftSpell)
+            if (leftSpell == null)
+            {
+                DebugHelper.Print($"no left spell");
+                if (Spells[0] != null)
+                {
+                    Spells[0]?.Reset();
+                    Spells[0] = null;
+                }
+            }
+            else if (leftSpell.FormId != Spells[0]?.Spell?.FormId)
             {
                 Spells[0]?.Reset();
-                Spells[0] = leftSpell != null ? new ChargingSpell(this, leftSpell, EquippedSpellSlots.LeftHand) : null;
+                DebugHelper.Print($"Assign left = {leftSpell.Name}");
+                Spells[0] = new ChargingSpell(this, leftSpell, EquippedSpellSlots.LeftHand);
             }
-            if (Spells[1].Spell != rightSpell)
+
+            if (rightSpell == null)
+            {
+                DebugHelper.Print($"no right spell");
+                if (Spells[1] != null)
+                {
+                    Spells[1]?.Reset();
+                    Spells[1] = null;
+                }
+            }
+            else if (rightSpell.FormId != Spells[1]?.Spell?.FormId)
             {
                 Spells[1]?.Reset();
-                Spells[1] = rightSpell != null ? new ChargingSpell(this, rightSpell, EquippedSpellSlots.RightHand) : null;
+                DebugHelper.Print($"Assign right = {rightSpell.Name}");
+                Spells[1] = new ChargingSpell(this, rightSpell, EquippedSpellSlots.RightHand);
             }
 
             foreach (var spell in Spells)
-                spell?.CurrentState.Update(diff);
+                spell?.CurrentState.Update(elapsedSeconds);
         }
     }
 }

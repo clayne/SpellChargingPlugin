@@ -8,8 +8,8 @@ namespace SpellChargingPlugin.Core
 {
     public class SpellPower
     {
-        public float Magnitude { get; set; }
-        public int Duration { get; set; }
+        public readonly float Magnitude;
+        public readonly int Duration;
 
         public SpellPower(float magnitude, int duration)
         {

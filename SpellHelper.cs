@@ -1,22 +1,37 @@
 ﻿using NetScriptFramework.SkyrimSE;
+using SpellChargingPlugin.Core;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace SpellChargingPlugin
 {
     public static class SpellHelper
     {
+        private static Dictionary<uint, SpellPower[]> _spellPowerCache = new Dictionary<uint, SpellPower[]>();
+
+        public static SpellPower[] GetBaseSpellPower(SpellItem spell)
+        {
+            return _spellPowerCache[spell.FormId];
+        }
+        public static SpellPower[] DefineBaseSpellPower(SpellItem spell)
+        {
+            if (!_spellPowerCache.ContainsKey(spell.FormId))
+                _spellPowerCache.Add(spell.FormId, spell.Effects.Select(eff => new SpellPower(eff.Magnitude, eff.Duration)).ToArray());
+            return _spellPowerCache[spell.FormId];
+        }
+
         public static EquippedSpellSlots? FindSpellInHand(Character character, SpellItem spell)
         {
             if (character == null || spell == null)
                 return null;
 
-            var leftHand = character.GetMagicCaster(EquippedSpellSlots.LeftHand);
-            if (leftHand != null && leftHand.CastItem.Equals(spell))
+            var leftHand = character.GetEquippedSpell(EquippedSpellSlots.LeftHand);
+            if (leftHand != null && leftHand.Equals(spell))
                 return EquippedSpellSlots.LeftHand;
 
-            var rightHand = character.GetMagicCaster(EquippedSpellSlots.RightHand);
-            if (rightHand != null && rightHand.CastItem.Equals(spell))
+            var rightHand = character.GetEquippedSpell(EquippedSpellSlots.RightHand);
+            if (rightHand != null && rightHand.Equals(spell))
                 return EquippedSpellSlots.RightHand;
 
             return null;
@@ -26,13 +41,11 @@ namespace SpellChargingPlugin
         {
             if (character == null)
                 return null;
-            var itemInHand = character.GetMagicCaster(hand);
-            if (itemInHand == null)
-                return null;
-            var spellInHand = itemInHand.CastItem as SpellItem;
+            var spellInHand = character.GetEquippedSpell(hand);
             if (spellInHand == null)
                 return null;
-            return (itemInHand.State, spellInHand);
+            var spellState = character.GetMagicCaster(hand).State;
+            return (spellState, spellInHand);
         }
     }
 

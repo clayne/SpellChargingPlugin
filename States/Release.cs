@@ -14,7 +14,7 @@ namespace SpellChargingPlugin.States
         {
         }
 
-        public override void Update(float diff)
+        protected override void OnUpdate(float elapsedSeconds)
         {
             TransitionTo(() => new Idle(_factory, _context));
         }
