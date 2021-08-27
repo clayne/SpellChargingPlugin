@@ -1,0 +1,179 @@
+<title>Using the game library</title>
+<link rel="stylesheet" href="styles/vs.css">
+<script src="highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<h1>Using the game library</h1>
+<h2>How it works?</h2>
+<p>Game library or type library is an additional file that contains wrappers for native types and hooks. The exposed types are interfaces that have internal implementations which are not exposed. An example of Actor class from Skyrim Special edition:</p>
+<pre><code class="cs">public interface Actor : TESObjectREFR, MagicTarget, ActorValueOwner, ActorState, BSTEventSink&lt;BSTransformDeltaEvent&gt;, BSTEventSink&lt;bhkCharacterMoveFinishEvent&gt;, IPostAnimationChannelUpdateFunctor</code></pre>
+<p>This Actor interface inherits other interfaces, notice how there is multiple inheritance. The TESObjectREFR itself also inherits many other interfaces as seen here:</p>
+<pre><code class="cs">public interface TESObjectREFR : TESForm, BSHandleRefObject, BSTEventSink&lt;BSAnimationGraphEvent&gt;, IAnimationGraphManagerHolder</code></pre>
+<p>The reason they are interfaces and not actual classes is because .NET language does not allow multiple inheritance of classes itself. Eventually all objects inherit IMemoryObject and are implemented with the MemoryObject class as base. If the type has a virtual table it will also inherit IVirtualObject and is implemented with the VirtualObject class, this will itself also inherit IMemoryObject. The memory object class and anything inheriting it contains no other data than one field which says the address in memory where the type is in. From that perspective the MemoryObject and everything inheriting it is nothing more than a pointer implementation / wrapper. Lets observe an example of how NiRefObject type from Skyrim Special Edition game library is implemented:</p>
+<pre><code class="cs">public interface NiRefObject : IVirtualObject
+{
+    void IncRef();
+    bool DecRef();
+}
+
+internal sealed class impl_NiRefObject : VirtualObject, NiRefObject
+{
+    public void IncRef()
+    {
+        var self = this.As&lt;NiRefObject&gt;();
+        Memory.InterlockedIncrement32(self.Address + 0x8, false);
+    }
+
+    public bool DecRef()
+    {
+        var self = this.As&lt;NiRefObject&gt;();
+        var result = Memory.InterlockedDecrement32(self.Address + 0x8, false);
+        if (result == 0)
+        {
+            self.InvokeVTableThisCall(0, 0x8);
+            return true;
+        }
+        return false;
+    }
+}
+
+// Later in game library initialize.
+RegisterType(modulePtr, "NiRefObject", typeof(NiRefObject), typeof(impl_NiRefObject), 16, new uint[] { 0x1E3A690 });</code></pre>
+<p>The IncRef and DecRef methods are part of the game and nothing to do with framework. Notice how the interface is public and the implementation is internal. Both types must be registered to the game library so it will know how to create and convert between the types. Check intellisense documentation on the RegisterType function for more information on that.</p>
+<p>For now lets look at the type. It inherits from IVirtualObject which means it has a virtual function table. Any type that does have it must be converted with the IVirtualObject.As<> method. This is basically a dynamic_cast<> implementation. Check this code:</p>
+<pre><code class="cs">TESObjectREFR obj = ...;
+Actor actor1 = obj as Actor; // This is wrong! TESObjectREFR is not necessarily created as Actor interface and may return null even if the cast itself could be valid (we don't know yet).
+Actor actor2 = obj.As&lt;Actor&gt;(); // This is correct. It will use dynamic_cast&lt;Actor*&gt; internally which will convert it to the appropriate interface assuming the cast is valid.</code></pre>
+<p>If we look at the implementation of the method of NiRefObject you can see it does var self = this.As<NiRefObject>(); This may look redundant but is actually necessary because consider something like this:</p>
+<pre><code class="cs">void SomeFunc(MagicTarget mt)
+{
+    // Do something with mt
+}
+
+Actor actor = ...;
+SomeFunc(actor); // Valid call because Actor inherits the MagicTarget interface</code></pre>
+<p>The reason this is problematic is because we can't be sure that when we are operating on MagicTarget interface that the base address of the interface is correct. For example the base address of MagicTarget is in fact not the same as base address of Actor due to multiple inheritance which makes the cast necessary as long as a type exists where the inherited class is not at the beginning (0 offset). This is only important for type library developers and should be handled internally so plugin authors don't need to concern themselves with it unless they use the base address of object manually.</p>
+<p>If we want to create a MemoryObject from an address manually we can do this:</p>
+<pre><code class="cs">Actor actor1 = MemoryObject.FromAddress&lt;Actor&gt;(new IntPtr(0x1234));
+Actor actor2 = MemoryObject.FromAddressSafeCast&lt;Actor&gt;(new IntPtr(0x1234));</code></pre>
+<p>Both are valid, the first one will force the memory address to become Actor type (unless the passed IntPtr is zero). The second will attempt to dynamic_cast the memory into Actor which may fail if the object is actually something else for example. The second option is only possible if the type has a virtual function table. Usually the second option is not necessary unless you aren't sure if the memory contains a valid object or not.</p>
+<p>You can also check manually if the object you just created is valid with this:</p>
+<pre><code class="cs">Actor actor = MemoryObject.FromAddress&lt;Actor&gt;(new IntPtr(0x1234));
+if(actor != null && actor.IsValid)
+{
+    // It's valid.
+}</code></pre>
+<p>All IMemoryObject types have IsValid property. For types with virtual table it will attempt to dynamic_cast itself into itself again which will only be valid if the return is non-zero. For regular objects it will use VirtualQuery to check if the memory region it points to is a valid readable memory with at least the size of the type.</p>
+<p>IMemoryObject comparison can't be done with == or != operators, it must be done with the Equals method because consider the following:</p>
+<pre><code class="cs">var ptr = new IntPtr(0x1234);
+Actor actor1 = MemoryObject.FromAddress&lt;Actor&gt;(ptr);
+Actor actor2 = MemoryObject.FromAddress&lt;Actor&gt;(ptr);
+actor1 == actor2 // false
+actor1.Equals(actor2); // true</code></pre>
+<p>When an object is created it always creates a new interface and the comparison operators will only check the instance in the .NET runtime but the Equals method will check if the underlying memory address is equal. This also means you must be slightly careful when comparing types with multiple inheritance:</p>
+<pre><code class="cs">var ptr = new IntPtr(0x1234);
+Actor actor = MemoryObject.FromAddress&lt;Actor&gt;(ptr);
+MagicTarget mt = actor;
+mt.Equals(actor) // true
+mt = mt.As&lt;MagicTarget&gt;();
+mt.Equals(actor) // false
+mt = mt.As&lt;Actor&gt;()
+mt.Equals(actor) // true</code></pre>
+<h2>What are events?</h2>
+<p>Events are native code hooks that have been prettied up so multiple plugins may register or unregister for them. In the Skyrim Special Edition the events can be found in the NetScriptFramework.Skyrim.Events class. Lets look at the event OnUpdateCamera as an example and create a quick script so that when user holds the G button the camera position and rotation will be set to the player character's head:</p>
+<pre><code class="cs">protected override bool Initialize(bool loadedAny)
+{
+    // Register for the event in Initialize.
+    // See intellisense documentation for more information about the Register method and what its arguments do!
+    Skyrim.Events.OnUpdateCamera.Register(OnUpdateCamera_Handler, 1000, 0, 0, EventRegistrationFlags.None);
+    return true;
+}
+
+private void OnUpdateCamera_Handler(NetScriptFramework.Skyrim.UpdateCameraEventArgs e)
+{
+    // The user is not holding the G button, no need to overwrite anything.
+    if (!Tools.Input.IsPressed(Tools.VirtualKeys.G))
+        return;
+
+    // Get camera from event arguments.
+    NetScriptFramework.Skyrim.TESCamera camera = e.Camera;
+    if (camera == null)
+        return;
+
+    // See if it's player camera, if not then we don't want to overwrite the position.
+    NetScriptFramework.Skyrim.PlayerCamera playerCamera = camera.As&lt;NetScriptFramework.Skyrim.PlayerCamera&gt;();
+    if (playerCamera == null) // Could be MapCamera or something else.
+        return;
+
+    // Get the node of camera, we will need to modify it.
+    var cameraNode = playerCamera.Node;
+    if (cameraNode == null)
+        return;
+
+    // Get the player character instance.
+    var plr = NetScriptFramework.Skyrim.PlayerCharacter.Instance;
+    if (plr == null)
+        return;
+
+    // The player character root node.
+    var plrRootNode = plr.Node;
+
+    // This maybe possible if player is in loading screen or not in third person?
+    if (plrRootNode == null)
+        return;
+
+    // Get the head node.
+    var headNode = plrRootNode.LookupNodeByName("NPC Head [Head]");
+
+    // Didn't find head node for some reason, lets just use player root node then.
+    if (headNode == null)
+        headNode = plrRootNode;
+
+    // Copy the world location of the player's head node to the local position of the camera node.
+    Memory.WriteBytes(cameraNode.LocalTransform.Address, Memory.ReadBytes(headNode.WorldTransform.Address, MemoryObject.SizeOf&lt;NetScriptFramework.Skyrim.NiTransform&gt;()));
+    // Alternatively could have just set all the fields manually too but that's slower:
+    //cameraNode.LocalTransform.Position.X = headNode.WorldTransform.Position.X;
+    //cameraNode.LocalTransform.Position.Y = headNode.WorldTransform.Position.Y;
+    // ...
+
+    // Now move the node slightly forwards so we aren't inside the player's head. For this we will need to make a NiPoint3 to use as argument:
+    using (var alloc = Memory.Allocate(MemoryObject.SizeOf&lt;NetScriptFramework.Skyrim.NiPoint3&gt;()))
+    {
+        var pt = MemoryObject.FromAddress&lt;NetScriptFramework.Skyrim.NiPoint3&gt;(alloc.Address);
+        pt.X = 0.0f; // Need to set these because the allocation is not guaranteed to be zeroed out!
+        pt.Y = 20.0f;
+        pt.Z = 0.0f;
+        cameraNode.LocalTransform.Translate(pt, cameraNode.LocalTransform.Position);
+    } // At this point the allocation is freed because it is using the IDisposable interface. To create a permanent allocation you can call the Pin() method on the resulting allocation.
+
+    // Update the camera node with the new position and rotation:
+    cameraNode.Update();
+}</code></pre>
+<p>Now try it in game, if it works try altering some stuff to see what happens.</p>
+<h2>Creating your own event</h2>
+<p>Sometimes you would want to create your own event, either because you're writing a type library or because you want to allow other plugin authors to use your plugin as a dependency for hooking the same code as you are hooking so they could use your plugin as a library if they want to overwrite some functionality.</p>
+<p>For this we will see how the camera update event is implemented in the type library:</p>
+<pre><code class="cs">public class UpdateCameraEventArgs : HookedEventArgs
+{
+    public NetScriptFramework.Skyrim.TESCamera Camera
+    {
+        get;
+        internal set;
+    }
+}
+
+public static NetScriptFramework.Event&lt;UpdateCameraEventArgs&gt; OnUpdateCamera
+{
+    get;
+    internal set;
+}
+
+private static UpdateCameraEventArgs __before_UpdateCamera(NetScriptFramework.CPURegisters ctx)
+{
+    UpdateCameraEventArgs args = new UpdateCameraEventArgs();
+    args.Camera = MemoryObject.FromAddress&lt;NetScriptFramework.Skyrim.TESCamera&gt;(ctx.DI);
+    return args;
+}
+
+// In Initialize:
+OnUpdateCamera = new NetScriptFramework.EventHook&lt;UpdateCameraEventArgs&gt;("UpdateCamera", new NetScriptFramework.EventHookParameters&lt;UpdateCameraEventArgs&gt;(new IntPtr(0x1404F5D9A).FromBase(), 0x5, 0x5, __before_UpdateCamera, null));</code></pre>
+<p>More on the hooking part in next section.</p>

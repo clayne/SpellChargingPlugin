@@ -1,0 +1,163 @@
+<title>Advanced plugin development</title>
+<link rel="stylesheet" href="styles/vs.css">
+<script src="highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<h1>Advanced plugin development</h1>
+<h2>Some function calls are limited to Initialize only</h2>
+<p>The Memory.WriteHook function is only possible during Initialize method of the plugin. The reason for that is so we can avoid using a lock every time a hook is entered. It also lets user see on application startup which plugins install conflicting hooks and are not compatible with each other.</p>
+<h2>Load order of plugins</h2>
+<p>The load order of plugins by default is in alphabetical order of the DLL files. However a plugin author may choose to delay initializing their plugin for later by returning false in the Initialize method. If you wish to initialize before another plugin there's currently no other way than to rename your DLL file to something that would sort first alphabetically.</p>
+<h2>Using a configuration file</h2>
+<p>If you want to add a configuration file for your plugin you will need to declare:</p>
+<pre><code class="cs">public Tools.ConfigFile Config
+{
+    get;
+    private set;
+}</code></pre>
+<p>It does not have to be in your main plugin class but that is one place you could put it. Then in the plugin Initialize method do this:</p>
+<pre><code class="cs">this.Config = new Tools.ConfigFile("MyPlugin");
+this.Config.AddSetting("My.Setting1", new Tools.Value((int)123), "The name of my setting", "The description of this setting", Tools.ConfigEntryFlags.None);
+this.Config.AddSetting("My.Setting2", new Tools.Value(true), "The name of the other setting", "The description of this other setting", Tools.ConfigEntryFlags.None);
+this.Config.AddSetting("My.Setting3", new Tools.Value("abc"), "The name of third setting", "Description of third setting", Tools.ConfigEntryFlags.None);
+if(this.Config.Load())
+{
+    // Loaded from file ok ...
+}
+else
+{
+    // File was missing or something else? We should probably save to create a new file.
+    this.Config.Save();
+}
+
+var value = this.Config.GetValue("My.Setting1");
+if(value == null) // Not registered? Maybe you typed the keyword wrong.
+{
+
+}
+else
+{
+    int intValue = 0;
+    if(!value.TryToInt32(out intValue)) // Couldn't convert to int for some reason.
+    {
+        // ... ?
+    }
+    else
+    {
+        // My.Setting1 is in intValue
+    }
+}</code></pre>
+<p>If the name of your DLL is MyPlugin.dll then you should put "MyPlugin" as the value in constructor of configuration file. The configuration file name will then end up as:</p>
+<pre><code class="plaintext">\Data\NetScriptFramework\Plugins\MyPlugin.config.txt</code></pre>
+<p>It would be an excellent idea if your DLL and configuration file had the same name because then user does not have to search around the directory for your configuration file or try to figure out which plugin's configuration they are now looking at. This could become especially problematic if there are many plugins installed.</p>
+<p>The configuration file is first initialized with constructor, then you add the settings with default values, then you try to load. If the loading fails the settings remain with default values and you can call Save method to ensure the file exists and is valid.</p>
+<p>You can later query the configuration values with GetValue. The configuration file is only opened once in Load method so there is no need to cache the configuration values however you may still do so if it is convenient for you.</p>
+<p>When you are developing your mod it may look appealing not to include the default configuration file when releasing your plugin because it would be generated anyway but it may be a good idea to include it anyway because if user uses mod manager with virtual file system the file ends up in overwrite directory and they may not find it, or they may wish to configure your plugin before launching the game. To get the default configuration file already formatted properly all you have to do is delete the configuration file and then launch the game once assuming you did put the if !Load then Save portion of the code.</p>
+<h2>Using other plugins as dependencies</h2>
+<p>It is possible to use another plugin as a dependency if you wish to use their registered events or they offer some other library functions useful to you. To do so all you have to do is add it as a reference in your plugin's project. Then during runtime you can Get the plugin instance like this:</p>
+<pre><code class="cs">Plugin otherPluginBase = PluginManager.GetPlugin("otherPluginKey"); // &lt;- the key they declared in their Plugin class
+OtherPlugin otherPluginTyped = PluginManager.GetPlugin&lt;OtherPlugin&gt;(); // &lt;- key is not needed if you include a type
+OtherPlugin otherPluginTyped2 = PluginManager.GetPlugin("otherPluginKey") as OtherPlugin; // also ok
+List&lt;Plugin&gt; allPlugins = PluginManager.GetPlugins(); // get a list of all installed .NET plugins</code></pre>
+<p>Because of how .NET resolves dependencies it may also be possible to have optional dependency:</p>
+<pre><code class="cs">Plugin otherPluginBase = PluginManager.GetPlugin("otherPluginKey");
+if (otherPluginBase != null)
+    SomeFunc();
+
+void SomeFunc(Plugin p)
+{
+    var op = p as OtherPlugin;
+    op.TheirFunc();
+}</code></pre>
+<p>The dependency isn't trying to resolve until you enter SomeFunc method and you will only enter if the other plugin is installed. However this is untested and may or may not work, be careful and make sure you test extensively first before going down this route.</p>
+<h2>Using another non-plugin library as a dependency</h2>
+<p>You can use any DLL whether it's native or managed as a dependency, however when you do put them in the /Data/NetScriptFramework/Plugins/Lib/ path so they will not attempt to load as plugins themselves. There is nothing you have to do on your end in the plugin to get that path to load. The framework will try to look in that directory automatically when loading DLLs.</p>
+<h2>Creating version independent plugins</h2>
+<p>One of the benefits of the .NET language is that most of your plugins can be completely version independent. If you only use the game library and don't manually use any memory addresses in your plugin then your plugin will be version independent, when the game is patched to a new version only the framework itself (game library) has to update. Your DLL plugin will work without any recompilation or edits with both versions of the game.</p>
+<p>There are however times when you will want to manually create a code hook at a specific address. There is still a way to make this version independent using the game debug library. The first thing you have to do is find out the version independent ID of a function:</p>
+<pre><code class="cs">var debug = CrashLog.Debug;
+if(debug == null)
+{
+    // Debug library is not loaded, we can't do it :(
+}
+else
+{
+    IntPtr myDesiredHookAddress = new IntPtr(0x1403E1659).FromBase();
+    var myDesiredFunction = debug.GetFunctionInfo(myDesiredHookAddress, true);
+    if(myDesiredFunction == null)
+    {
+        // Uhh this function was not found at all in the debug library ?
+    }
+    else
+    {
+        ulong myDesiredHookAddress_u = Main.Is64Bit ? myDesiredHookAddress.ToUInt64() : myDesiredHookAddress.ToUInt32();
+        ulong versionIndependentId = myDesiredFunction.Id;
+        ulong myDesiredHookOffset = myDesiredHookAddress_u - (debug.BaseOffset + myDesiredFunction.Begin);
+        // I should hook at debug.BaseOffset + fn[versionIndependentId].Base + myDesiredHookOffset
+    }
+}</code></pre>
+<p>Now when you have the offset in function and the version independent ID you can hook like this:</p>
+<pre><code class="cs">ulong versionIndependentId = ...; // Constant
+ulong myDesiredHookOffset = ...; // Constant
+var fn = debug.GetFunctionInfo(versionIndependentId);
+if(fn == null)
+{
+    // Bad fail!
+}
+Memory.WriteHook(new HookParameters()
+{
+    Address = new IntPtr((long)(debug.BaseOffset + fn.Begin + myDesiredHookOffset))</code></pre>
+<p>You may also want to check what bytes were present at that address, there's no guarantee the function body remained the same although there is low chance of it changing usually.</p>
+<h2>Check various versions of things</h2>
+<p>You can check the versions like this:</p>
+<pre><code class="cs">int myPluginVersion = this.Version;
+int someOtherPluginVersion;
+var otherPlugin = PluginManager.GetPlugin("otherPlugin");
+if (otherPlugin != null)
+    someOtherPluginVersion = otherPlugin.Version;
+int mainFrameworkVersion = Main.FrameworkVersion;
+var game = Main.Game;
+if(game != null) // Game library is loaded
+{
+    string shortName = game.ShortName; // SkyrimSE
+    IReadOnlyList&lt;int&gt; executableVersion = game.GameVersion; // { 1, 5, 53, 0 } (always 4 integers)
+    int libraryVersion = game.LibraryVersion; // 1
+
+    // Oops maybe I don't want to load.
+    if(libraryVersion &lt; 3)
+        throw new ArgumentException("MyPlugin requires game library version 3 or higher.");
+}</code></pre>
+<h2>Debugging</h2>
+<p>You can debug your plugin by attaching the visual studio to the game process and setting breakpoints.</p>
+<p>Sometimes you may want to debug native types or code, there's a lot you can do to help with that especially if the debug library is loaded:</p>
+<pre><code class="cs">/*
+.text:000000014094A6D6  mov     ebp, edx
+.text:000000014094A6D8  call    sub_1403E1640   &lt;&lt;&lt; want to debug this call?
+.text:000000014094A6DD  movsxd  rdi, eax
+*/
+Memory.WriteHook(new HookParameters()
+{
+    Address = new IntPtr(0x14094A6D8).FromBase(),
+    IncludeLength = 5,
+    ReplaceLength = 5,
+    Before = ctx =&gt;
+    {
+        Main.Log.AppendLine("Calling 1403E1640 with arguments (" + ctx.CX.ToHexString() + " = " + NativeCrashLog.GetValueInfo(ctx.CX) + ")");
+    },
+    After = ctx =&gt;
+    {
+        Main.Log.AppendLine("Return value is (" + ctx.AX.ToHexString() + " = " + NativeCrashLog.GetValueInfo(ctx.AX) + ")");
+    }
+});</code></pre>
+<p>This will use the crash log's value identification system. If it's a known type it will say the name of the type, if it's a string it will read back the string, if it's a pointer to a valid memory region but not at VTable it will say void*, if it's a value or float it will try to say that value.</p>
+<p>Sometimes you will want even more information though:</p>
+<pre><code class="cs">Memory.WriteHook(new HookParameters()
+{
+    Address = new IntPtr(0x14094A6D8).FromBase(),
+    IncludeLength = 5,
+    ReplaceLength = 5,
+    Before = ctx =&gt;
+    {
+        Main.WriteNativeCrashLog(ctx, int.MinValue, "Data/NetScriptFramework/Plugins/MyPlugin_debug.txt");
+    }
+});</code></pre>
+<p>This will write a crash log for that location but still continues execution afterwards.</p>

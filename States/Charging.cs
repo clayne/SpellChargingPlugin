@@ -21,9 +21,9 @@ namespace SpellChargingPlugin.States
         /// <param name="elapsedSeconds"></param>
         protected override void OnUpdate(float elapsedSeconds)
         {
-            var state = SpellHelper.GetHandSpellState(_context.Holder.Character, _context.Slot);
-
-            switch (state?.State)
+            var handState = SpellHelper.GetHandSpellState(_context.Holder.Character, _context.Slot);
+            
+            switch (handState?.State)
             {
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.Released:
                     this.TransitionTo(() => new Release(_factory, _context));

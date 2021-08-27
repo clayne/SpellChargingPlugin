@@ -1,0 +1,31 @@
+<title>Introduction</title>
+<link rel="stylesheet" href="styles/vs.css">
+<script src="highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<h1>Introduction</h1>
+<h2>What is it?</h2>
+<p>The purpose of the framework is to allow developers to create .DLL mods or reverse engineer the binary in the simplest manner possible. It contains methods for memory editing, native code hooking, plugin loading and writing type libraries which allows regular .NET interfaces to be used as wrappers for native types in memory.</p>
+<h2>What is part of the framework?</h2>
+<p>The framework consists of four parts. The first part is a runtime DLL that mixes native and managed code. It gets loaded like a regular C library with LoadLibrary. It initializes the managed portion of the framework and provides some native helper functions which the framework uses for hooking.</p>
+<p>The second part is the managed framework itself. This contains the plugin loading system, memory related functions and native code hooking. All plugins must reference this library and should never reference the runtime itself.</p>
+<p>The third part is a game type library. This contains wrappers for types which use only a memory address to allow plugin authors to use native types. The type library is optional and not required for the framework or plugins to work.</p>
+<p>The final component are the plugins themselves which can be used to gather information about the binary or modify it.</p>
+<h2>Installing the framework</h2>
+<p>Installing for a specific game is as easy as following the instructions where you downloaded it from. For example installing for Skyrim Special Edition: <a href="https://www.nexusmods.com/skyrimspecialedition/mods/21294">https://www.nexusmods.com/skyrimspecialedition/mods/21294</a></p>
+<p>Installing for another game or application that is not supported usually is different. Currently only 64 bit applications are supported but 32 bit support is planned in the future. You will have to get the NetScriptFramework.Runtime.dll to either be injected or otherwise loaded into the application, then invoke the void Initialize() function in that DLL (the function is exported and can be found with GetProcAddress). It is best to get the DLL loaded before static constructors are invoked, theoretically it should also be possible to get it loaded after but that is untested.</p>
+<h2>Verifying whether it works</h2>
+<p>Start the application and exit it. Then find /Data/NetScriptFramework/NetScriptFramework.log.txt file and open. The file should contain:</p>
+<pre><code class="plaintext">[17 Nov 2018 11:08:35.899] Initializing framework version 1.
+[17 Nov 2018 11:08:35.905] Loaded configuration file.
+[17 Nov 2018 11:08:35.905] Preparing .NET code hooking.
+[17 Nov 2018 11:08:35.910] Loading game library.
+[17 Nov 2018 11:08:35.941] Loaded game library for `The Elder Scrolls V: Skyrim Special Edition` (1).
+[17 Nov 2018 11:08:35.942] Running game version is 1.5.53.0
+[17 Nov 2018 11:08:35.996] Loading plugins.
+[17 Nov 2018 11:08:35.996] Path to plugins: "Data\NetScriptFramework\Plugins".
+[17 Nov 2018 11:08:36.019] Finished loading 0 plugins.
+[17 Nov 2018 11:08:36.019] Finished framework initialization.
+[17 Nov 2018 11:08:48.330] Shutting down framework.
+[17 Nov 2018 11:08:48.330] Shutting down plugins.
+[17 Nov 2018 11:08:48.330] Shutdown complete.</code></pre>
+<p>The path to the log file and the content may vary but it should say at least some of these things or an error message. If the file is empty that means the framework never got initialized at all which could mean that the runtime DLL was not loaded or encountered another error.</p>

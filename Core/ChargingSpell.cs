@@ -1,4 +1,5 @@
-﻿using NetScriptFramework.SkyrimSE;
+﻿using NetScriptFramework;
+using NetScriptFramework.SkyrimSE;
 using SpellChargingPlugin.StateMachine;
 using System;
 using System.Collections.Generic;
@@ -18,6 +19,7 @@ namespace SpellChargingPlugin.Core
         private PowerModifier[] _powerModifier;
         private SpellPower[] _spellBase;
         private int _chargeLevel;
+        private NiAVObject _magicNode;
 
         public ChargingSpell(ChargingActor holder, SpellItem spell, EquippedSpellSlots slot)
         {
@@ -92,11 +94,37 @@ namespace SpellChargingPlugin.Core
             }
             _chargeLevel = 0;
             UpdateStats();
+            UpdateVisual();
         }
 
         public void UpdateVisual()
         {
             // todo (NIOverride scale? audio? play cool effect?)
+
+            // Get the player character instance.
+            var plr = NetScriptFramework.SkyrimSE.PlayerCharacter.Instance;
+            if (plr == null)
+                return;
+
+            // The player character root node.
+            var plrRootNode = plr.Node;
+
+            // This maybe possible if player is in loading screen or not in third person?
+            if (plrRootNode == null)
+                return;
+
+            // Get the magic node node.
+            if(_magicNode == null)
+                _magicNode = Slot == EquippedSpellSlots.LeftHand 
+                    ? plrRootNode.LookupNodeByName("NPC L MagicNode [LMag]")
+                    : plrRootNode.LookupNodeByName("NPC R MagicNode [RMag]");
+            if (_magicNode == null)
+                return;
+
+            _magicNode.LocalTransform.Scale = 1 + (_chargeLevel / 10f);
+            DebugHelper.Print($"{_magicNode?.Name}.Scale = {_magicNode?.LocalTransform?.Scale}");
+            _magicNode.Update(0.5f);
         }
+
     }
 }
