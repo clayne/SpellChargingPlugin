@@ -42,8 +42,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>.\NetScriptFramework.SkyrimSE.dll</HintPath>
     </Reference>
+    <Reference Include="PresentationCore" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -54,9 +56,14 @@
   <ItemGroup>
     <Compile Include="Core\ChargingActor.cs" />
     <Compile Include="Core\ChargingSpell.cs" />
+    <Compile Include="ParticleSystem\Behaviors\OrbitBehavior.cs" />
+    <Compile Include="ParticleSystem\Particle.cs" />
+    <Compile Include="ParticleSystem\ParticleBehavior.cs" />
     <Compile Include="Core\PowerModifier.cs" />
     <Compile Include="Core\SpellPower.cs" />
     <Compile Include="DebugHelper.cs" />
+    <Compile Include="MathHelper.cs" />
+    <Compile Include="ParticleSystem\ParticleEngine.cs" />
     <Compile Include="Settings.cs" />
     <Compile Include="SpellCharging.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -66,6 +73,7 @@
     <Compile Include="StateMachine\StateFactory.cs" />
     <Compile Include="States\Cancel.cs" />
     <Compile Include="States\Charging.cs" />
+    <Compile Include="States\FadeParticles.cs" />
     <Compile Include="States\Idle.cs" />
     <Compile Include="States\Release.cs" />
   </ItemGroup>

@@ -10,7 +10,6 @@ namespace SpellChargingPlugin.States
 {
     public class Charging : State<ChargingSpell>
     {
-        float _chargeTime = 0.0f;
         public Charging(StateFactory<ChargingSpell> factory, ChargingSpell context) : base(factory, context)
         {
         }
@@ -25,20 +24,18 @@ namespace SpellChargingPlugin.States
             
             switch (handState?.State)
             {
+                case NetScriptFramework.SkyrimSE.MagicCastingStates.Charging:
+                    break;
+                case NetScriptFramework.SkyrimSE.MagicCastingStates.Charged:
+                case NetScriptFramework.SkyrimSE.MagicCastingStates.Concentrating:
+                    _context.UpdateCharge(elapsedSeconds);
+                    break;
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.Released:
-                    this.TransitionTo(() => new Release(_factory, _context));
+                    TransitionTo(() => new Release(_factory, _context));
                     break;
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.None:
                 case null:
-                    this.TransitionTo(() => new Cancel(_factory, _context));
-                    break;
-                default:
-                    _chargeTime += elapsedSeconds;
-                    if (_chargeTime >= Settings.ChargeInterval)
-                    {
-                        _chargeTime = 0.0f;
-                        _context.Charge(Settings.ChargeIncrement);
-                    }
+                    TransitionTo(() => new Cancel(_factory, _context));
                     break;
             }
         }

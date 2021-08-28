@@ -37,6 +37,10 @@ namespace SpellChargingPlugin
             return null;
         }
 
+        public static SpellItem GetSpellInHand(Character character, EquippedSpellSlots hand)
+        {
+            return character?.GetEquippedSpell(hand);
+        }
         public static SpellHandState? GetHandSpellState(Character character, EquippedSpellSlots hand)
         {
             if (character == null)
