@@ -19,6 +19,7 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
             var alloc = Memory.Allocate(0x10);
             alloc.Pin();
             _distanceVec = MemoryObject.FromAddress<NiPoint3>(alloc.Address + 0x00);
+            // TODO: make stuff actually track where the player is looking instead of doing this
             _distanceVec.X = 100f; _distanceVec.Y = -100f; _distanceVec.Z = 500f;
             this._character = character;
         }

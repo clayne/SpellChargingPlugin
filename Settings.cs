@@ -9,6 +9,7 @@ namespace SpellChargingPlugin
 {
     public static class Settings
     {
+        // Refresh rate for logic. 48 ups is enough.
         public const float UpdateRate = 1.0f / 48f;
 
         [ConfigValue("ChargeInterval", "Charge Speed", "How much time has to pass before gaining a charge? In seconds.")]
@@ -17,7 +18,7 @@ namespace SpellChargingPlugin
 
         [ConfigValue("LogDebugMessages", "Log", "Write debug output to file.")]
         public static bool LogDebugMessages { get; internal set; }
-            = true;
+            = false;
 
         [ConfigValue("PowerPerHundredCharges", "Charge Power", "How much power will a hundred charges (100 mana spent) add? In percent.")]
         public static float PowerPerHundredCharges { get; internal set; }
@@ -30,6 +31,8 @@ namespace SpellChargingPlugin
         [ConfigValue("HalfPowerWhenMagAndDur", "Halve Power for Duo-Effect", "Should effects that have both a duration and a magnitude receive halved benefit?")]
         public static bool HalfPowerWhenMagAndDur { get; internal set; }
             = true;
+
+        [ConfigValue("ChargesPerParticle", "Charges Per Particle", "Spawn a swirly bit every N charges.")]
         public static int ChargesPerParticle { get; internal set; }
             = 5;
     }

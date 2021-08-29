@@ -36,7 +36,6 @@ namespace SpellChargingPlugin.Core
         private List<Particle> _additionalParticles = new List<Particle>();
 
         private TESCameraStates _currentCamID;
-        readonly float PARTICLE_FAC = (float)Math.Sqrt(Settings.MaxChargeForParticles);
 
         public ChargingSpell(ChargingActor holder, SpellItem spell, EquippedSpellSlots slot, bool isTwoHand = false)
         {
@@ -46,8 +45,9 @@ namespace SpellChargingPlugin.Core
             IsTwoHanded = isTwoHand;
 
             _particleOrbitCenter = GetNode(slot, isTwoHand);
-            InitializeParticleEngine(spell.Effects.FirstOrDefault());
 
+            // TODO: find a way to intelligently find the best mesh to use as a particle instead of loading and using ALL of them
+            InitializeParticleEngine(spell.Effects.FirstOrDefault());
             var tmpNifs = new List<string>();
             foreach (var adeff in spell.Effects.Select(e => e.Effect?.HitEffectArt).Where(e => e != null))
             {
@@ -79,6 +79,7 @@ namespace SpellChargingPlugin.Core
 
             _currentCamID = PlayerCamera.Instance.State.Id;
 
+            // TODO: this probably shouldn't be handled by this object
             Events.OnUpdateCamera.Register(e =>
             {
                 var id = e.Camera.State.Id;
@@ -100,7 +101,7 @@ namespace SpellChargingPlugin.Core
         private NiAVObject GetNode(EquippedSpellSlots slot, bool both = false)
         {
             var plrRootNode = Holder.Character.Node;
-            // This maybe possible?
+            // This may be possible?
             if (plrRootNode == null)
                 return null;
             if (both)
@@ -236,6 +237,7 @@ namespace SpellChargingPlugin.Core
             newParticle.AttachToNode(_particleOrbitCenter.Parent);
             _particleEngine.Add(newParticle);
 
+            // TODO: get rid of this particle spam
             foreach (var p in _additionalParticles)
             {
                 Particle np = p.Clone();
@@ -288,6 +290,7 @@ namespace SpellChargingPlugin.Core
             return true;
         }
 
+        // TODO: reset & clean with a little more grace
         public void Reset()
         {
             __pn = 0;

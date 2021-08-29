@@ -21,7 +21,5 @@ namespace SpellChargingPlugin.States
 
             TransitionTo(() => new Idle(_factory, _context));
         }
-
-
     }
 }

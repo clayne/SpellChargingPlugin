@@ -15,9 +15,9 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
-    <DebugType>embedded</DebugType>
+    <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\..\..\MO2 - Skyrim SE\mods\DEV\NetScriptFramework\Plugins\</OutputPath>
+    <OutputPath>..\..\..\..\..\MO2 - Skyrim SE\mods\m3SpellCharging\NetScriptFramework\Plugins\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>

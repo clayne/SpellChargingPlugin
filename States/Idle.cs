@@ -21,7 +21,10 @@ namespace SpellChargingPlugin.States
         {
             var handState = SpellHelper.GetHandSpellState(_context.Holder.Character, _context.Slot);
             if (handState == null)
+            {
+                if (_needsReset) { _context.Reset(); _needsReset = false; }
                 return;
+            }
             if(_needsReset && _timeInState > 10f)
             {
                 DebugHelper.Print($"Idle state auto-cleanup {_context.Spell.Name}");
@@ -31,7 +34,8 @@ namespace SpellChargingPlugin.States
             switch (handState.Value.State)
             {
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.Charged:
-                case NetScriptFramework.SkyrimSE.MagicCastingStates.Concentrating: // does not work properly (yet)
+                //case NetScriptFramework.SkyrimSE.MagicCastingStates.Concentrating: // does not work properly (yet)
+                // TODO: move reset & cleanup to separate behavior or something
                     if (_needsReset)
                     {
                         _context.Reset();

@@ -27,7 +27,8 @@ namespace SpellChargingPlugin.States
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.Charging:
                     break;
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.Charged:
-                case NetScriptFramework.SkyrimSE.MagicCastingStates.Concentrating:
+                // TODO: concentration
+                // case NetScriptFramework.SkyrimSE.MagicCastingStates.Concentrating:
                     _context.UpdateCharge(elapsedSeconds);
                     break;
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.Released:
@@ -35,6 +36,7 @@ namespace SpellChargingPlugin.States
                     break;
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.None:
                 case null:
+                default:
                     TransitionTo(() => new Cancel(_factory, _context));
                     break;
             }

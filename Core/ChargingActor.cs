@@ -18,6 +18,7 @@ namespace SpellChargingPlugin.Core
             Spells = new ChargingSpell[2];
         }
         
+        // TODO: there's probably a more efficient way to check for equipped item changes besides manually checking
         public void Update(float elapsedSeconds)
         {
             var leftSpell = SpellHelper.GetSpellInHand(Character, EquippedSpellSlots.LeftHand);
