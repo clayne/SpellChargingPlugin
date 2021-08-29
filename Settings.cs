@@ -13,22 +13,28 @@ namespace SpellChargingPlugin
 
         [ConfigValue("ChargeInterval", "Charge Speed", "How much time has to pass before gaining a charge? In seconds.")]
         public static float ChargeInterval { get; internal set; }
-            = 1f / 5000f;
+            = 1f / 2f;
 
         [ConfigValue("LogDebugMessages", "Log", "Write debug output to file.")]
         public static bool LogDebugMessages { get; internal set; }
             = true;
 
-        [ConfigValue("CostPerCharge", "Charge Cost", "How much mana is needed for one charge? In percent, based on the spell's mana cost.")]
+        [ConfigValue("CostPerCharge", "Charge Cost", "How much mana is needed for one charge? In percent, based on the setting below.")]
         public static float CostPerCharge { get; internal set; }
             = 1f / 10f;
 
+        [ConfigValue("UseSpellBaseMagicka", "Use spell base magicka", "Use the spell's cost as a base for mana cost? Otherwise, use max mana.")]
+        public static bool UseSpellBaseMagicka { get; internal set; }
+            = true;
+
         [ConfigValue("PowerPerCharge", "Charge Power", "How much power does one charge add? In percent.")]
         public static float PowerPerCharge { get; internal set; }
-            = 1f / 10f;
+            = 1f / 5f;
 
-        [ConfigValue("MaxParticles", "Max Particles", "How many swirly things would you like?")]
-        public static float MaxParticles { get; internal set; }
-            = 100000f;
+        [ConfigValue("MaxChargeForParticles", "Max Charge Particles", "At what charge level do the swirly bits stop appearing?")]
+        public static float MaxChargeForParticles { get; internal set; }
+            = 100f;
+
+        
     }
 }

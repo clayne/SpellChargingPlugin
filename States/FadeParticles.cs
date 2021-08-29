@@ -17,7 +17,7 @@ namespace SpellChargingPlugin.States
 
         protected override void OnUpdate(float elapsedSeconds)
         {
-            _context.ParticleEngine.Behaviors.Add(new FadeBehavior(2.0f));
+            _context.ParticleEngine.Behaviors.Add(new FadeBehavior(1.0f));
 
             TransitionTo(() => new Idle(_factory, _context));
         }

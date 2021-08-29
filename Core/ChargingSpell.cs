@@ -5,6 +5,7 @@ using SpellChargingPlugin.StateMachine;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media.Media3D;
@@ -18,11 +19,15 @@ namespace SpellChargingPlugin.Core
         public EquippedSpellSlots Slot { get; set; }
         public State<ChargingSpell> CurrentState { get; set; }
         public bool IsResetting { get; set; }
+        public bool IsTwoHanded { get; set; }
         public ParticleEngine ParticleEngine => _particleEngine;
 
         private PowerModifier[] _powerModifier;
         private SpellPower[] _spellBase;
-        private NiAVObject _magicNode;
+
+        private NiAVObject _particleOrbitCenter;
+        private List<NiAVObject> _scalingNodes = new List<NiAVObject>();
+
         private float _timeSpentCharging;
 
         private float _chargeLevel = 0f;
@@ -30,26 +35,57 @@ namespace SpellChargingPlugin.Core
         private ParticleEngine _particleEngine = new ParticleEngine();
         private Particle _myEffectParticle;
         private List<Particle> _additionalParticles = new List<Particle>();
-
         private readonly float _constantMagickaCost;
 
-        public ChargingSpell(ChargingActor holder, SpellItem spell, EquippedSpellSlots slot)
+        private TESCameraStates _currentCamID;
+
+        float PARTICLE_FAC = (float)Math.Sqrt(Settings.MaxChargeForParticles);
+
+        public ChargingSpell(ChargingActor holder, SpellItem spell, EquippedSpellSlots slot, bool isTwoHand = false)
         {
             Holder = holder;
             Spell = spell;
             Slot = slot;
+            IsTwoHanded = isTwoHand;
 
-            _magicNode = FindMyMagicNode();
+            _particleOrbitCenter = GetNode(slot, isTwoHand);
             InitializeParticleEngine(spell.Effects.FirstOrDefault());
 
-            foreach (var item in spell.Effects.Where(e => e.Effect?.MagicProjectile != null))
+            if (isTwoHand)
             {
-                var p = CreateParticleFromNIF(item.Effect.MagicProjectile.ModelName.Text);
-                if (p != null)
-                    _additionalParticles.Add(p);
+                _scalingNodes.Add(GetNode(EquippedSpellSlots.LeftHand, false));
+                _scalingNodes.Add(GetNode(EquippedSpellSlots.RightHand, false));
             }
+            else
+                _scalingNodes.Add(GetNode(slot, false));
 
-            _constantMagickaCost = spell.SpellData.CostOverride * Settings.CostPerCharge;
+            var tmpNifs = new List<string>();
+            foreach (var adeff in spell.Effects.Select(e => e.Effect?.HitEffectArt).Where(e => e != null))
+            {
+                var nif = adeff.ModelName.Text;
+                tmpNifs.Add(nif);
+            }
+            foreach (var adeff in spell.Effects.Select(e => e.Effect?.CastingArt).Where(e => e != null))
+            {
+                var nif = adeff.ModelName.Text;
+                tmpNifs.Add(nif);
+            }
+            foreach (var adeff in spell.Effects.Select(e => e.Effect?.MagicProjectile).Where(e => e != null))
+            {
+                var nif = adeff.ModelName.Text;
+                tmpNifs.Add(nif);
+            }
+            foreach (var toLoad in tmpNifs.Distinct())
+            {
+                _additionalParticles.Add(CreateParticleFromNIF(toLoad));
+            }
+            
+
+            
+            if (Settings.UseSpellBaseMagicka)
+                _constantMagickaCost = spell.SpellData.CostOverride * Settings.CostPerCharge;
+            else
+                _constantMagickaCost = holder.Character.GetActorValueMax(ActorValueIndices.Magicka) * Settings.CostPerCharge;
             _spellBase = SpellHelper.DefineBaseSpellPower(Spell);
             _powerModifier = _spellBase.Select(_ => new PowerModifier(0f, 0)).ToArray();
             _chargeLevel = 0.0f;
@@ -57,17 +93,36 @@ namespace SpellChargingPlugin.Core
             var factory = new StateFactory<ChargingSpell>();
             var idleState = new States.Idle(factory, this);
             CurrentState = factory.GetOrCreate(() => idleState);
+
+            _currentCamID = PlayerCamera.Instance.State.Id;
+
+            Events.OnUpdateCamera.Register(e =>
+            {
+                var id = e.Camera.State.Id;
+                if (id == _currentCamID)
+                    return;
+                _currentCamID = id;
+                if (id == TESCameraStates.FirstPerson || id == TESCameraStates.ThirdPerson1 || id == TESCameraStates.ThirdPerson2)
+                    RelocateParticles();
+            });
+
         }
 
-        private NiAVObject FindMyMagicNode()
+        private void RelocateParticles()
         {
-            // The character root node.
-            var plrRootNode = Holder.Character.Node;
+            _particleOrbitCenter = GetNode(Slot, IsTwoHanded);
+            DebugHelper.Print($"Change particle node to {_particleOrbitCenter.Name}");
+        }
 
+        private NiAVObject GetNode(EquippedSpellSlots slot, bool both = false)
+        {
+            var plrRootNode = Holder.Character.Node;
             // This maybe possible?
             if (plrRootNode == null)
                 return null;
-            return Slot == EquippedSpellSlots.LeftHand
+            if (both)
+                return plrRootNode.LookupNodeByName("NPC Head [Head]");
+            return slot == EquippedSpellSlots.LeftHand
                     ? plrRootNode.LookupNodeByName("NPC L MagicNode [LMag]")
                     : plrRootNode.LookupNodeByName("NPC R MagicNode [RMag]");
         }
@@ -85,6 +140,7 @@ namespace SpellChargingPlugin.Core
                         {
                             if (p.Result[0] is NiAVObject obj)
                             {
+                                DebugHelper.Print($"NIF: {fname} Loaded");
                                 Particle particle = _particleEngine.CreateFromNiAVObject(obj);
                                 particle.SetVelocity(new Vector3D(0, 0, 0));
                                 particle.SetScale(1f);
@@ -104,8 +160,6 @@ namespace SpellChargingPlugin.Core
             // no casting art? maybe
             if (string.IsNullOrEmpty(fname))
                 return;
-
-            DebugHelper.Print($"Precaching particle from NIF {fname}...");
             NiAVObject.LoadFromFileAsync(
                 new NiObjectLoadParameters()
                 {
@@ -118,17 +172,17 @@ namespace SpellChargingPlugin.Core
                             {
                                 Particle particle = _particleEngine.CreateFromNiAVObject(obj);
                                 particle.SetVelocity(new Vector3D(0, 0, 0));
-                                particle.SetScale(1f);
+                                particle.SetFade(0.5f);
+                                particle.SetScale(0.5f);
                                 _myEffectParticle = particle;
-                                DebugHelper.Print($"Caching sucessful!");
 
                                 _particleEngine.AddBehavior(
                                     new ParticleSystem.Behaviors.OrbitBehavior(
                                         _myEffectParticle.Object.LocalTransform.Position));
                                 _particleEngine.AddBehavior(
-                                    new ParticleSystem.Behaviors.BreatheBehavior(0.25f, 1f, 3.14f));
+                                    new ParticleSystem.Behaviors.BreatheBehavior(0.1f, 1f, 10f));
                                 _particleEngine.AddBehavior(
-                                    new ParticleSystem.Behaviors.LookAtBehavior());
+                                    new ParticleSystem.Behaviors.LookAtBehavior(Holder.Character));
                                 _particleEngine.Initialized = true;
                             }
                         }
@@ -159,25 +213,35 @@ namespace SpellChargingPlugin.Core
             _chargeLevel += 1.0f;
             AddPowerForCharge(_chargeLevel);
             AddParticleForCharge(_chargeLevel);
-            ScaleHandSpellForCharge(_chargeLevel);
+            //ScaleNodeForCharge(_chargeLevel);
             UpdateStats();
         }
 
-        private void ScaleHandSpellForCharge(float chargeLevel)
+        private void ScaleNodeForCharge(float chargeLevel)
         {
-            if (_magicNode.LocalTransform.Scale > 5f)
-                return;
-            _magicNode.LocalTransform.Scale = 1f + 5f * (1f - Settings.MaxParticles / (Settings.MaxParticles + chargeLevel));
-            _magicNode.Update(0.5f);
+            foreach (var node in _scalingNodes)
+            {
+                if (node.LocalTransform.Scale > 5f)
+                    return;
+                node.LocalTransform.Scale = 1f + 4f * (1f - 50 / (50 + chargeLevel));
+                //node.Update(0.1f);
+            }
         }
 
+        int __pn = 0;
         private void AddParticleForCharge(float chargeLevel)
         {
-            if (chargeLevel > Settings.MaxParticles)
+            if (chargeLevel > Settings.MaxChargeForParticles)
                 return;
+            
+            float visualFactor = 1.0f - (PARTICLE_FAC / (PARTICLE_FAC + chargeLevel));
+            int distanceFactor = (int)(10f + 5f * chargeLevel * (1.0f - visualFactor));
 
-            float visualFactor = 1.0f - (25f / (25f + chargeLevel));
-            int distanceFactor = (int)(2f * chargeLevel * (1-visualFactor));
+            if (IsTwoHanded)
+                distanceFactor *= 2;
+
+            ++__pn;
+            DebugHelper.Print($"{Spell.Name} Particles: {__pn}, DistanceFac: {distanceFactor}, VisualFac: {visualFactor}");
 
             float r1 = NetScriptFramework.Tools.Randomizer.NextInt(-distanceFactor, distanceFactor);
             float r2 = NetScriptFramework.Tools.Randomizer.NextInt(-distanceFactor, distanceFactor);
@@ -187,9 +251,9 @@ namespace SpellChargingPlugin.Core
             int a2 = NetScriptFramework.Tools.Randomizer.NextInt(-1, 1);
             int a3 = a1 == 0 && a2 == 0 ? 1 : NetScriptFramework.Tools.Randomizer.NextInt(-1, 1);
 
-            var scale = (float)NetScriptFramework.Tools.Randomizer.NextInt(500, 1500) * 0.001f;
+            var scale = (float)NetScriptFramework.Tools.Randomizer.NextInt(150, 300) * 0.001f;
             var fade = 0.5f;
-            var translate = new Vector3D(r1, r2, r3 * 0.1f);
+            var translate = new Vector3D(r1, r2, r3 * 0.5f);
             var velocity = new Vector3D(a1, a3, a2);
 
             Particle newParticle = _myEffectParticle.Clone();
@@ -197,7 +261,7 @@ namespace SpellChargingPlugin.Core
             newParticle.SetFade(fade);
             newParticle.Translate(translate);
             newParticle.SetVelocity(velocity);
-            newParticle.AttachToNode(_magicNode.Parent);
+            newParticle.AttachToNode(_particleOrbitCenter.Parent);
             _particleEngine.Add(newParticle);
 
             foreach (var p in _additionalParticles)
@@ -207,7 +271,7 @@ namespace SpellChargingPlugin.Core
                 np.SetFade(fade);
                 np.Translate(translate);
                 np.SetVelocity(velocity);
-                np.AttachToNode(_magicNode.Parent);
+                np.AttachToNode(_particleOrbitCenter.Parent);
                 _particleEngine.Add(np);
             }
         }
@@ -225,7 +289,7 @@ namespace SpellChargingPlugin.Core
                 _powerModifier[i].Magnitude = _spellBase[i].Magnitude * realPercantage;
                 _powerModifier[i].Duration = _spellBase[i].Duration * realPercantage;
 
-                DebugHelper.Print($"Charge {Spell.Name}.{eff.Effect.Name} bonusMAG: {_powerModifier[i].Magnitude}, bonusDur: {_powerModifier[i].Duration}");
+                //DebugHelper.Print($"Charge {Spell.Name}.{eff.Effect.Name} bonusMAG: {_powerModifier[i].Magnitude}, bonusDur: {_powerModifier[i].Duration}");
             }
         }
 
@@ -242,7 +306,7 @@ namespace SpellChargingPlugin.Core
 
         private bool TryDrainMagicka(float magCost)
         {
-            DebugHelper.Print($"Trying to drain {magCost} magicka");
+            //DebugHelper.Print($"Trying to drain {magCost} magicka");
             if (Holder.Character.GetActorValue(ActorValueIndices.Magicka) < magCost)
                 return false;
             Holder.Character.DamageActorValue(ActorValueIndices.Magicka, -magCost);
@@ -251,6 +315,8 @@ namespace SpellChargingPlugin.Core
 
         public void Reset()
         {
+            __pn = 0;
+
             IsResetting = true;
             for (int i = 0; i < Spell.Effects.Count; i++)
             {
@@ -261,7 +327,10 @@ namespace SpellChargingPlugin.Core
                 DebugHelper.Print($"Reset {Spell.Name}.{eff.Effect.Name}");
             }
             _chargeLevel = 0.0f;
-            _magicNode.LocalTransform.Scale = 1f;
+            foreach (var node in _scalingNodes)
+            {
+                node.LocalTransform.Scale = 1f;
+            }
             UpdateStats();
             _particleEngine.ClearParticles();
             _particleEngine.ResetBehaviors();

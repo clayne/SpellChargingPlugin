@@ -17,7 +17,7 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
 
         public override void Apply(Particle particle, float elapsedSeconds)
         {
-            particle.SetScale(particle.Object.LocalTransform.Scale - 0.337f * elapsedSeconds / _duration);
+            particle.SetScale(particle.Object.LocalTransform.Scale - elapsedSeconds);
             if (particle.Object.LocalTransform.Scale <= 0)
                 particle.Delete = true;
         }

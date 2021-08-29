@@ -11,14 +11,16 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
 {
     public class LookAtBehavior : ParticleBehavior
     {
+        private readonly Character _character;
         private NiPoint3 _distanceVec;
 
-        public LookAtBehavior()
+        public LookAtBehavior(Character character)
         {
             var alloc = Memory.Allocate(0x10);
             alloc.Pin();
             _distanceVec = MemoryObject.FromAddress<NiPoint3>(alloc.Address + 0x00);
-            _distanceVec.X = 0f; _distanceVec.Y = -10000f; _distanceVec.Z = 10000f;
+            _distanceVec.X = 100f; _distanceVec.Y = -100f; _distanceVec.Z = 500f;
+            this._character = character;
         }
 
         public override void Apply(Particle particle, float elapsedSeconds)

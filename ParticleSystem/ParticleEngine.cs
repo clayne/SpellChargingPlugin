@@ -1,4 +1,5 @@
-﻿using NetScriptFramework.SkyrimSE;
+﻿using NetScriptFramework;
+using NetScriptFramework.SkyrimSE;
 using SpellChargingPlugin.ParticleSystem.Behaviors;
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,9 @@ namespace SpellChargingPlugin.ParticleSystem
 
         private readonly List<Particle> _activeParticles = new List<Particle>();
         private readonly List<ParticleBehavior> _particleBehaviors = new List<ParticleBehavior>();
+
+        private NiAVObject _reattachTarget;
+        private bool _needsReattach;
 
         public Particle CreateFromNiAVObject(NiAVObject obj)
         {
@@ -50,6 +54,7 @@ namespace SpellChargingPlugin.ParticleSystem
                 return;
             if (!_activeParticles.Any())
                 return;
+
             foreach (var behavior in _particleBehaviors)
             {
                 if (!behavior.Active)
@@ -75,6 +80,13 @@ namespace SpellChargingPlugin.ParticleSystem
         public void AddBehavior(ParticleBehavior behavior)
         {
             _particleBehaviors.Add(behavior);
+        }
+
+        internal void ReAttachTo(NiAVObject node)
+        {
+            _reattachTarget = node;
+            _needsReattach = true;
+
         }
     }
 }
