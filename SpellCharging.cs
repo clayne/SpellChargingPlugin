@@ -41,16 +41,11 @@ namespace SpellChargingPlugin
 			_logFile = new NetScriptFramework.Tools.LogFile("spellcharging", NetScriptFramework.Tools.LogFileFlags.AutoFlush | NetScriptFramework.Tools.LogFileFlags.IncludeTimestampInLine);
 			_player = new Core.ChargingActor();
            
-
 			_timer = new NetScriptFramework.Tools.Timer();
 			_timer.Start();
 
 			Events.OnFrame.Register(e =>
 			{
-				var main = NetScriptFramework.SkyrimSE.Main.Instance;
-				if (main?.IsGamePaused != false)
-					return;
-
 				long now = _timer.Time;
 				long elapsedMilliSeconds = 0;
 				if (_lastUpdateTime.HasValue)
@@ -62,9 +57,12 @@ namespace SpellChargingPlugin
 			return true;
 		}
 
-		
 		private void Update(float elapsedSeconds)
 		{
+			var main = NetScriptFramework.SkyrimSE.Main.Instance;
+			if (main?.IsGamePaused != false)
+				return;
+
 			_timeSinceLastUpdate += elapsedSeconds;
 			if (_timeSinceLastUpdate < Settings.UpdateRate)
 				return;

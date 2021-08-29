@@ -53,14 +53,11 @@ namespace SpellChargingPlugin.ParticleSystem
 
         internal void SetFade(float fadeValue)
         {
-            if (_niAvObject is BSFadeNode)
+            var mptr = _niAvObject.Cast<BSFadeNode>();
+            if (mptr != IntPtr.Zero)
             {
-                var mptr = _niAvObject.Cast<BSFadeNode>();
-                if (mptr != IntPtr.Zero)
-                {
-                    Memory.WriteFloat(mptr + 0x130, fadeValue);
-                    Memory.WriteFloat(mptr + 0x140, fadeValue);
-                }
+                Memory.WriteFloat(mptr + 0x130, fadeValue);
+                Memory.WriteFloat(mptr + 0x140, fadeValue);
             }
         }
 

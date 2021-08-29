@@ -48,11 +48,12 @@ namespace SpellChargingPlugin.Core
             }
         }
 
-        private void ResetAssign(SpellItem leftSpell, ref ChargingSpell chargingSpell, EquippedSpellSlots slot)
+        private void ResetAssign(SpellItem spell, ref ChargingSpell chargingSpell, EquippedSpellSlots slot)
         {
+            DebugHelper.Print($"Hand: {slot} Spell: {chargingSpell?.Spell?.Name} -> {spell.Name}");
             if (chargingSpell != null)
                 chargingSpell.Reset();
-            chargingSpell = new ChargingSpell(this, leftSpell, slot);
+            chargingSpell = new ChargingSpell(this, spell, slot);
         }
     }
 }

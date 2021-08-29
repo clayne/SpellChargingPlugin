@@ -11,6 +11,7 @@ namespace SpellChargingPlugin.ParticleSystem
     public partial class ParticleEngine
     {
         public bool Initialized { get; set; }
+        public List<ParticleBehavior> Behaviors => _particleBehaviors;
 
         private readonly List<Particle> _activeParticles = new List<Particle>();
         private readonly List<ParticleBehavior> _particleBehaviors = new List<ParticleBehavior>();
@@ -30,9 +31,12 @@ namespace SpellChargingPlugin.ParticleSystem
             }
             _activeParticles.Clear();
         }
-        public void ClearBehaviors()
+        public void ResetBehaviors()
         {
-            _particleBehaviors.Clear();
+            foreach (var behavior in _particleBehaviors)
+            {
+                behavior.Reset();
+            }
         }
 
         public void Add(Particle newParticle)
@@ -48,7 +52,10 @@ namespace SpellChargingPlugin.ParticleSystem
                 return;
             foreach (var behavior in _particleBehaviors)
             {
-                DebugHelper.Print($"Running particle behavior: {behavior}");
+                if (!behavior.Active)
+                    continue;
+                behavior.Update(elapsedSeconds);
+                //DebugHelper.Print($"Running particle behavior: {behavior}");
                 int i = 0;
                 while (i < _activeParticles.Count)
                 {
@@ -65,7 +72,7 @@ namespace SpellChargingPlugin.ParticleSystem
             }
         }
 
-        internal void AddBehavior(OrbitBehavior behavior)
+        public void AddBehavior(ParticleBehavior behavior)
         {
             _particleBehaviors.Add(behavior);
         }

@@ -1,4 +1,5 @@
 ﻿using SpellChargingPlugin.Core;
+using SpellChargingPlugin.ParticleSystem.Behaviors;
 using SpellChargingPlugin.StateMachine;
 using System;
 using System.Collections.Generic;
@@ -21,7 +22,7 @@ namespace SpellChargingPlugin.States
             var handState = SpellHelper.GetHandSpellState(_context.Holder.Character, _context.Slot);
             if (handState == null)
                 return;
-            if(_needsReset && _timeInState > 1.337f)
+            if(_needsReset && _timeInState > 1.5f)
             {
                 _context.Reset();
                 _needsReset = false;
@@ -35,6 +36,13 @@ namespace SpellChargingPlugin.States
                         _context.Reset();
                         _needsReset = false;
                     }
+                    var peb = _context.ParticleEngine.Behaviors;
+                    var fadeBehavior = peb.OfType<FadeBehavior>();
+                    foreach (var item in fadeBehavior.ToList())
+                    {
+                        peb.Remove(item);
+                    }
+
                     TransitionTo(() => new Charging(_factory, _context));
                     break;
             }

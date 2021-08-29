@@ -13,11 +13,13 @@ namespace SpellChargingPlugin
     {
         public static void Print(string message)
         {
+#if DEBUG
             if (Settings.LogDebugMessages)
             {
                 SpellCharging._logFile.AppendLine(message);
                 //MenuManager.ShowHUDMessage(message, null, true);
             }
+#endif
         }
 
         public class ObjectDumper

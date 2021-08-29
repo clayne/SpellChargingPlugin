@@ -17,9 +17,7 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
         }
         public override void Apply(Particle particle, float elapsedSeconds)
         {
-            particle.Rotate(_orbitCenter, particle.Velocity, 360f * elapsedSeconds);
+            particle.Rotate(_orbitCenter, particle.Velocity, 180f * elapsedSeconds);
         }
-
-        public override string ToString() => "Orbit";
     }
 }
