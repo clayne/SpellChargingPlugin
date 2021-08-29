@@ -22,8 +22,9 @@ namespace SpellChargingPlugin.States
             var handState = SpellHelper.GetHandSpellState(_context.Holder.Character, _context.Slot);
             if (handState == null)
                 return;
-            if(_needsReset && _timeInState > 1.5f)
+            if(_needsReset && _timeInState > 10f)
             {
+                DebugHelper.Print($"Idle state auto-cleanup {_context.Spell.Name}");
                 _context.Reset();
                 _needsReset = false;
             }
