@@ -11,20 +11,10 @@ namespace SpellChargingPlugin.ParticleSystem
 {
     public partial class ParticleEngine
     {
-        public bool Initialized { get; set; }
-        public List<ParticleBehavior> Behaviors => _particleBehaviors;
+        private readonly List<Particle> _activeParticles;
+        private int _maxParticles;
 
-        private readonly List<Particle> _activeParticles = new List<Particle>();
-        private readonly List<ParticleBehavior> _particleBehaviors = new List<ParticleBehavior>();
-
-        public Particle CreateFromNiAVObject(NiAVObject obj)
-        {
-            Particle ret = new Particle(obj);
-
-            return ret;
-        }
-
-        public void ClearParticles()
+        public void Clear()
         {
             foreach (var item in _activeParticles)
             {
@@ -32,51 +22,41 @@ namespace SpellChargingPlugin.ParticleSystem
             }
             _activeParticles.Clear();
         }
-        public void ResetBehaviors()
-        {
-            foreach (var behavior in _particleBehaviors)
-            {
-                behavior.Reset();
-            }
-        }
 
         public void Add(Particle newParticle)
         {
-            _activeParticles.Add(newParticle);
+            if(_activeParticles.Count < _maxParticles)
+                _activeParticles.Add(newParticle);
         }
 
         public void Update(float elapsedSeconds)
         {
-            if (!Initialized)
-                return;
             if (!_activeParticles.Any())
                 return;
 
-            foreach (var behavior in _particleBehaviors)
+            int i = 0;
+            while (i < _activeParticles.Count)
             {
-                if (!behavior.Active)
-                    continue;
-                behavior.Update(elapsedSeconds);
-                //DebugHelper.Print($"Running particle behavior: {behavior}");
-                int i = 0;
-                while (i < _activeParticles.Count)
+                var particle = _activeParticles[i];
+                particle.Update(elapsedSeconds);
+
+                if (particle.Delete)
                 {
-                    var particle = _activeParticles[i];
-                    if (particle.Delete)
-                    {
-                        _activeParticles.RemoveAt(i);
-                        particle.Dispose();
-                        continue;
-                    }
-                    behavior.Apply(particle, elapsedSeconds);
-                    ++i;
+                    _activeParticles.RemoveAt(i);
+                    particle.Dispose();
+                    continue;
                 }
+                ++i;
             }
         }
 
-        public void AddBehavior(ParticleBehavior behavior)
+        public static ParticleEngine Create(int maxParticles)
         {
-            _particleBehaviors.Add(behavior);
+            var ret = new ParticleEngine()
+            {
+                _maxParticles = maxParticles,
+            };
+            return ret;
         }
     }
 }

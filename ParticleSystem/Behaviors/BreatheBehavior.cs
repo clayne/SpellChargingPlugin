@@ -7,71 +7,43 @@ using System.Threading.Tasks;
 
 namespace SpellChargingPlugin.ParticleSystem.Behaviors
 {
-    public class BreatheBehavior : ParticleBehavior
+    public class BreatheBehavior : IParticleBehavior
     {
-        private class BreatheState
-        {
-            public bool Expanding;
-            public float OriginalScale, MinScale, MaxScale, Delta;
-        }
+        public bool Active { get; set; }
 
+        private readonly float _originalScale;
         private readonly float _minScale;
         private readonly float _maxScale;
-        private readonly float _frequency;
-        private Dictionary<int, BreatheState> _states = new Dictionary<int, BreatheState>();
+        private readonly float _scaleDelta;
+        private readonly Particle _particle;
+        private bool _isExpanding;
 
-        public BreatheBehavior(float minScale, float maxScale, float frequency)
+        public BreatheBehavior(Particle particle, float minScaleFactor, float maxScaleFactor, float frequency)
         {
-            this._minScale = minScale;
-            this._maxScale = maxScale;
-            this._frequency = frequency;
+            _originalScale = particle.Object.LocalTransform.Scale;
+            _minScale = _originalScale * minScaleFactor;
+            _maxScale = _originalScale * maxScaleFactor;
+            _scaleDelta = (_originalScale * _maxScale - _originalScale * _minScale) * frequency;
+            _isExpanding = Randomizer.NextInt(0, 100) > 50;
         }
 
-        public override void Reset()
+        public void Update(float elapsedSeconds)
         {
-            _states.Clear();
-        }
+            if (!Active)
+                return;
 
-        public override void Apply(Particle particle, float elapsedSeconds)
-        {
-            if (!_states.TryGetValue(particle.GetHashCode(), out BreatheState pState))
-            {
-                pState = new BreatheState()
-                {
-                    Expanding = Randomizer.NextInt(0, 100) > 50,
-                    OriginalScale = particle.Object.LocalTransform.Scale,
-                };
-                pState.MinScale = pState.OriginalScale * _minScale;
-                pState.MaxScale = pState.OriginalScale * _maxScale;
-                pState.Delta = pState.OriginalScale * pState.MaxScale - pState.OriginalScale * pState.MinScale;
-                pState.Delta *= _frequency;
-                _states.Add(particle.GetHashCode(), pState);
-                //DebugHelper.Print($"Added P{particle.GetHashCode()}, Min = {pState.MinScale}, Max = {pState.MaxScale}, Orig = {pState.OriginalScale}, Expand = {pState.Expanding}");
-            }
             float newScale;
-            if (pState.Expanding)
+            if (_isExpanding)
             {
-                newScale = particle.Object.LocalTransform.Scale + pState.Delta * elapsedSeconds;
-                //DebugHelper.Print($"Expanding P{particle.GetHashCode()}, Delta = {pState.Delta}, New = {newScale}");
-
-                if (newScale >= pState.MaxScale)
-                {
-                    //DebugHelper.Print($"P{particle.GetHashCode()}, Switching directions");
-                    pState.Expanding = false;
-                }
+                newScale = _particle.Object.LocalTransform.Scale + _scaleDelta * elapsedSeconds;
+                _isExpanding = newScale > _maxScale;
             }
             else
             {
-                newScale = particle.Object.LocalTransform.Scale - pState.Delta * elapsedSeconds;
-                //DebugHelper.Print($"Contracting P{particle.GetHashCode()}, Delta = {pState.Delta}, New = {newScale}");
-
-                if (newScale <= pState.MinScale)
-                {
-                    //DebugHelper.Print($"P{particle.GetHashCode()}, Switching directions");
-                    pState.Expanding = true;
-                }
+                newScale = _particle.Object.LocalTransform.Scale - _scaleDelta * elapsedSeconds;
+                _isExpanding = newScale <= _minScale;
             }
-            particle.Object.LocalTransform.Scale = newScale;
+            _particle.Object.LocalTransform.Scale = newScale;
         }
 
     }

@@ -10,41 +10,66 @@ namespace SpellChargingPlugin.Core
 {
     public class ChargingActor
     {
-        public Character Character => PlayerCharacter.Instance;
-        public ChargingSpell[] Spells { get; set; } // 0 Left, 1 Right
+        public Character Actor { get; }
+        public ChargingSpell LeftSpell { get; private set; }
+        public ChargingSpell RightSpell { get; private set; }
 
-        public ChargingActor()
+        bool _leftEqualsRight = false;
+
+        public ChargingActor(Character character)
         {
-            Spells = new ChargingSpell[2];
+            Actor = character;
         }
-        
-        // TODO: there's probably a more efficient way to check for equipped item changes besides manually checking
+
         public void Update(float elapsedSeconds)
         {
-            var leftSpell = SpellHelper.GetSpellInHand(Character, EquippedSpellSlots.LeftHand);
-            var rightSpell = SpellHelper.GetSpellInHand(Character, EquippedSpellSlots.RightHand);
+            AssignSpellsIfNecessary();
 
-            if (leftSpell != null)
+            LeftSpell?.Update(elapsedSeconds);
+            if(!_leftEqualsRight)
+                RightSpell?.Update(elapsedSeconds);
+        }
+
+        /// <summary>
+        /// Check if the character has spells equipped and assign them to their appropriate <cref>ChargingSpell</cref> slots.
+        /// Also take care of cleaning up the previous <cref>ChargingSpell</cref> if overwriting.
+        /// </summary>
+        private void AssignSpellsIfNecessary()
+        {
+            var leftSpell = SpellHelper.GetSpell(Actor, EquippedSpellSlots.LeftHand);
+
+            if (leftSpell == null && LeftSpell != null)
+                LeftSpell = ClearSpell(LeftSpell);
+            else if (LeftSpell?.Equals(leftSpell) != true)
             {
-                if (leftSpell.FormId != Spells[0]?.Spell.FormId)
-                    ResetAssign(leftSpell, ref Spells[0], EquippedSpellSlots.LeftHand, leftSpell.EquipSlot.FormId == 0x00013F45);
-                Spells[0].Update(elapsedSeconds);
+                LeftSpell = SetSpell(leftSpell, EquippedSpellSlots.LeftHand);
+                _leftEqualsRight = LeftSpell.IsTwoHanded;
             }
 
-            if (rightSpell != null)
+            // Can skip right hand check and assignment when using master-tier or other two-handed spells.
+            if (!_leftEqualsRight)
             {
-                if (rightSpell.FormId != Spells[1]?.Spell.FormId)
-                    ResetAssign(rightSpell, ref Spells[1], EquippedSpellSlots.RightHand);
-                Spells[1].Update(elapsedSeconds);
+                var rightSpell = SpellHelper.GetSpell(Actor, EquippedSpellSlots.RightHand);
+
+                if (rightSpell == null && RightSpell != null)
+                    RightSpell = ClearSpell(RightSpell);
+                else if (RightSpell?.Equals(rightSpell) != true)
+                    RightSpell = SetSpell(rightSpell, EquippedSpellSlots.RightHand);
             }
         }
 
-        private void ResetAssign(SpellItem spell, ref ChargingSpell chargingSpell, EquippedSpellSlots slot, bool isTwoHand = false)
+        private ChargingSpell ClearSpell(ChargingSpell spell)
         {
-            DebugHelper.Print($"Hand: {slot} Spell: {chargingSpell?.Spell?.Name} -> {spell.Name}");
-            if (chargingSpell != null)
-                chargingSpell.Reset();
-            chargingSpell = new ChargingSpell(this, spell, slot, isTwoHand);
+            spell.Reset();
+            return null;
+        }
+
+        private ChargingSpell SetSpell(SpellItem spellItem, EquippedSpellSlots handSlot)
+        {
+            DebugHelper.Print($"Hand: {handSlot} -> {spellItem.Name}");
+            var isTwoHandedSpell = spellItem.EquipSlot?.FormId == Settings.Instance.EquipBothFormID;
+            var ret = new ChargingSpell(this, spellItem, isTwoHandedSpell ? EquippedSpellSlots.Other : handSlot);
+            return ret;
         }
     }
 }

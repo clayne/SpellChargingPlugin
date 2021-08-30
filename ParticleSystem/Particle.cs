@@ -1,6 +1,9 @@
 ﻿using NetScriptFramework;
 using NetScriptFramework.SkyrimSE;
+using SpellChargingPlugin.ParticleSystem.Behaviors;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Windows.Media.Media3D;
 
 namespace SpellChargingPlugin.ParticleSystem
@@ -8,17 +11,24 @@ namespace SpellChargingPlugin.ParticleSystem
     public class Particle : IDisposable
     {
         public bool Delete { get; set; }
-        public Vector3D Velocity => _velocity;
         public NiAVObject Object => _niAvObject;
 
         private NiAVObject _niAvObject;
-        private Vector3D _velocity;
+        private List<IParticleBehavior> _behaviors = new List<IParticleBehavior>();
 
-        public Particle(NiAVObject obj)
+        public static Particle Create(string nifPath)
         {
-            this._niAvObject = obj;
+            var obj = Util.LoadNif(nifPath).Clone() as NiAVObject;
+            Particle ret = new Particle()
+            {
+                _niAvObject = obj,
+                Delete = false,
+            };
             obj.IncRef();
+            return ret;
         }
+
+        private Particle() {}
 
         public void Dispose()
         {
@@ -27,31 +37,56 @@ namespace SpellChargingPlugin.ParticleSystem
             _niAvObject = null;
         }
 
-        public void SetVelocity(Vector3D velocity)
+        public void Update(float elapsedSeconds)
         {
-            _velocity = velocity;
+            foreach (var behavior in _behaviors)
+            {
+                behavior.Update(elapsedSeconds);
+            }
         }
 
-        public void AttachToNode(NiNode parent)
+        /// <summary>
+        /// Attach this particle to a parent (makes it actually appear in the game).
+        /// </summary>
+        /// <param name="parent"></param>
+        /// <returns>this</returns>
+        public Particle AttachToNode(NiNode parent)
         {
             parent.AttachObject(_niAvObject);
+            return this;
         }
 
-        public void SetScale(float scale)
+        /// <summary>
+        /// Size
+        /// </summary>
+        /// <param name="scale"></param>
+        /// <returns>this</returns>
+        public Particle SetScale(float scale)
         {
             _niAvObject.LocalTransform.Scale = scale;
+            return this;
         }
 
+        /// <summary>
+        /// Creates a copy of this particle WITHOUT any behaviors
+        /// </summary>
+        /// <returns>cloned object</returns>
         public Particle Clone()
         {
-            var ret = new Particle(_niAvObject.Clone() as NiAVObject)
+            var ret = new Particle()
             {
-                _velocity = _velocity
+                _niAvObject = this._niAvObject.Clone() as NiAVObject,
+                Delete = false,
             };
             return ret;
         }
 
-        internal void SetFade(float fadeValue)
+        /// <summary>
+        /// Transparency (?)
+        /// </summary>
+        /// <param name="fadeValue"></param>
+        /// <returns>this</returns>
+        public Particle SetFade(float fadeValue)
         {
             var mptr = _niAvObject.Cast<BSFadeNode>();
             if (mptr != IntPtr.Zero)
@@ -59,9 +94,15 @@ namespace SpellChargingPlugin.ParticleSystem
                 Memory.WriteFloat(mptr + 0x130, fadeValue);
                 Memory.WriteFloat(mptr + 0x140, fadeValue);
             }
+            return this;
         }
 
-        public void Translate(Vector3D offset)
+        /// <summary>
+        /// Move in LOCAL space
+        /// </summary>
+        /// <param name="offset"></param>
+        /// <returns>this</returns>
+        public Particle Translate(Vector3D offset)
         {
             using (var alloc = Memory.Allocate(0x10))
             {
@@ -71,26 +112,13 @@ namespace SpellChargingPlugin.ParticleSystem
                 pt.Z = (float)offset.Z;
                 _niAvObject.LocalTransform.Translate(pt, _niAvObject.LocalTransform.Position);
             }
+            return this;
         }
 
-        public void Rotate(NiPoint3 rotationCenter, Vector3D axis, double degree)
+        public Particle AddBehavior(IParticleBehavior behavior)
         {
-            var point = _niAvObject.LocalTransform.Position;
-            // create empty matrix
-            var matrix = new Matrix3D();
-            var vPoint = new Point3D(point.X, point.Y, point.Z);
-            var vRotationCenter = new Point3D(rotationCenter.X, rotationCenter.Y, rotationCenter.Z);
-            // translate matrix to rotation point
-            matrix.Translate(vRotationCenter - new Point3D());
-
-            // rotate it the way we need
-            matrix.Rotate(new Quaternion(axis, degree));
-
-            // apply the matrix to our point
-            vPoint = matrix.Transform(vPoint);
-            point.X = (float)vPoint.X;
-            point.Y = (float)vPoint.Y;
-            point.Z = (float)vPoint.Z;
+            _behaviors.Add(behavior);
+            return this;
         }
     }
 

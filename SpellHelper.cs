@@ -3,96 +3,82 @@ using SpellChargingPlugin.Core;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using static NetScriptFramework.SkyrimSE.ActiveEffect;
 
 namespace SpellChargingPlugin
 {
     public static class SpellHelper
     {
-        private static Dictionary<uint, SpellPower[]> _spellPowerCache = new Dictionary<uint, SpellPower[]>();
-
-        public static SpellPower[] GetBaseSpellPower(SpellItem spell)
+        /// <summary>
+        /// Represents a Spell and its State in an actor's hand
+        /// </summary>
+        public readonly struct SpellHandState
         {
-            return _spellPowerCache[spell.FormId];
-        }
-        public static SpellPower[] DefineBaseSpellPower(SpellItem spell)
-        {
-            if (!_spellPowerCache.ContainsKey(spell.FormId))
-                _spellPowerCache.Add(spell.FormId, spell.Effects.Select(eff => new SpellPower(eff.Magnitude, eff.Duration)).ToArray());
-            return _spellPowerCache[spell.FormId];
-        }
+            public readonly MagicCastingStates State;
+            public readonly SpellItem Spell;
+            public readonly EquippedSpellSlots Slot;
 
-        public static EquippedSpellSlots? FindSpellInHand(Character character, SpellItem spell)
-        {
-            if (character == null || spell == null)
-                return null;
-
-            var leftHand = character.GetEquippedSpell(EquippedSpellSlots.LeftHand);
-            if (leftHand != null && leftHand.Equals(spell))
-                return EquippedSpellSlots.LeftHand;
-
-            var rightHand = character.GetEquippedSpell(EquippedSpellSlots.RightHand);
-            if (rightHand != null && rightHand.Equals(spell))
-                return EquippedSpellSlots.RightHand;
-
-            return null;
+            public SpellHandState(MagicCastingStates state, SpellItem spell, EquippedSpellSlots slot)
+            {
+                State = state;
+                Spell = spell;
+                Slot = slot;
+            }
         }
 
-        public static SpellItem GetSpellInHand(Character character, EquippedSpellSlots hand)
+        /// <summary>
+        /// Holds Spell Magnitude and Duration
+        /// </summary>
+        public readonly struct EffectPower
         {
-            return character?.GetEquippedSpell(hand);
+            public readonly float Magnitude;
+            public readonly int Duration;
+
+            public EffectPower(float magnitude, int duration)
+            {
+                Magnitude = magnitude;
+                Duration = duration;
+            }
         }
-        public static SpellHandState? GetHandSpellState(Character character, EquippedSpellSlots hand)
+
+        private static Dictionary<EffectItem, EffectPower> _baseEffectPowers = new Dictionary<EffectItem, EffectPower>();
+
+        /// <summary>
+        /// Get the BASE Magniture and/or Durations for the given Effect
+        /// </summary>
+        /// <param name="effectItem"></param>
+        /// <returns>EffectPower</returns>
+        public static EffectPower GetBasePower(EffectItem effectItem)
+        {
+            if (!_baseEffectPowers.ContainsKey(effectItem))
+                _baseEffectPowers.Add(effectItem, new EffectPower(effectItem.Magnitude, effectItem.Duration));
+            return _baseEffectPowers[effectItem];
+        }
+
+        /// <summary>
+        /// Self-explanatory. A more lightweight version of <cref>GetSpellAndState</cref> for when you don't need the State
+        /// </summary>
+        /// <param name="character"></param>
+        /// <param name="hand"></param>
+        /// <returns></returns>
+        public static SpellItem GetSpell(Character character, EquippedSpellSlots hand)
+         => character?.GetEquippedSpell(hand);
+
+        /// <summary>
+        /// Self-explanatory.
+        /// </summary>
+        /// <param name="character"></param>
+        /// <param name="hand"></param>
+        /// <returns></returns>
+        public static SpellHandState? GetSpellAndState(Character character, EquippedSpellSlots hand)
         {
             if (character == null)
                 return null;
-            var spellInHand = character.GetEquippedSpell(hand);
+            var spellInHand = GetSpell(character, hand);
             if (spellInHand == null)
                 return null;
             var spellState = character.GetMagicCaster(hand).State;
-            return (spellState, spellInHand);
-        }
-    }
-
-    public struct SpellHandState
-    {
-        public MagicCastingStates State;
-        public SpellItem Spell;
-
-        public SpellHandState(MagicCastingStates state, SpellItem spell)
-        {
-            State = state;
-            Spell = spell;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is SpellHandState other &&
-                   State == other.State &&
-                   EqualityComparer<SpellItem>.Default.Equals(Spell, other.Spell);
-        }
-
-        public override int GetHashCode()
-        {
-            int hashCode = -374139281;
-            hashCode = hashCode * -1521134295 + State.GetHashCode();
-            hashCode = hashCode * -1521134295 + EqualityComparer<SpellItem>.Default.GetHashCode(Spell);
-            return hashCode;
-        }
-
-        public void Deconstruct(out MagicCastingStates state, out SpellItem spell)
-        {
-            state = State;
-            spell = Spell;
-        }
-
-        public static implicit operator (MagicCastingStates State, SpellItem Spell)(SpellHandState value)
-        {
-            return (value.State, value.Spell);
-        }
-
-        public static implicit operator SpellHandState((MagicCastingStates State, SpellItem Spell) value)
-        {
-            return new SpellHandState(value.State, value.Spell);
+            return new SpellHandState (spellState, spellInHand, hand);
         }
     }
 }

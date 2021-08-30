@@ -13,13 +13,13 @@ namespace SpellChargingPlugin.States
     {
         private bool _needsReset = false;
 
-        public Idle(StateFactory<ChargingSpell> factory, ChargingSpell context) : base(factory, context)
+        public Idle(ChargingSpell context) : base(context)
         {
         }
 
         protected override void OnUpdate(float elapsedSeconds)
         {
-            var handState = SpellHelper.GetHandSpellState(_context.Holder.Character, _context.Slot);
+            var handState = SpellHelper.GetSpellAndState(_context.Holder.Actor, _context.Slot);
             if (handState == null)
             {
                 if (_needsReset) { _context.Reset(); _needsReset = false; }
@@ -41,14 +41,14 @@ namespace SpellChargingPlugin.States
                         _context.Reset();
                         _needsReset = false;
                     }
-                    var peb = _context.ParticleEngine.Behaviors;
+                    var peb = _context.Particle.Behaviors;
                     var fadeBehavior = peb.OfType<FadeBehavior>();
                     foreach (var item in fadeBehavior.ToList())
                     {
                         peb.Remove(item);
                     }
 
-                    TransitionTo(() => new Charging(_factory, _context));
+                    TransitionTo(() => new Charging(_context));
                     break;
             }
         }

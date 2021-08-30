@@ -6,21 +6,28 @@ using System.Threading.Tasks;
 
 namespace SpellChargingPlugin.ParticleSystem.Behaviors
 {
-    public class FadeBehavior : ParticleBehavior
+    public class FadeBehavior : IParticleBehavior
     {
-        private float _duration;
+        public bool Active { get; set; }
 
-        public FadeBehavior(float duration)
+        private readonly Particle _particle;
+        private readonly float _duration;
+
+        public FadeBehavior(Particle particle, float duration)
         {
-            this._duration = duration;
+            _particle = particle;
+            _duration = duration;
         }
 
         // TODO: does this even work as intended?
-        public override void Apply(Particle particle, float elapsedSeconds)
+        public void Update(float elapsedSeconds)
         {
-            particle.SetScale(particle.Object.LocalTransform.Scale - 1.1337f * elapsedSeconds / _duration);
-            if (particle.Object.LocalTransform.Scale <= 0)
-                particle.Delete = true;
+            if (!Active)
+                return;
+
+            _particle.SetScale(_particle.Object.LocalTransform.Scale - 1.1337f * elapsedSeconds / _duration);
+            if (_particle.Object.LocalTransform.Scale <= 0)
+                _particle.Delete = true;
         }
     }
 }

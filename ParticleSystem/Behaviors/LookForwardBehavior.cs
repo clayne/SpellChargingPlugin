@@ -9,24 +9,29 @@ using System.Threading.Tasks;
 
 namespace SpellChargingPlugin.ParticleSystem.Behaviors
 {
-    public class LookAtBehavior : ParticleBehavior
+    public class LookForwardBehavior : IParticleBehavior
     {
-        private readonly Character _character;
-        private NiPoint3 _distanceVec;
+        public bool Active { get; set; }
 
-        public LookAtBehavior(Character character)
+        private NiPoint3 _distanceVec;
+        private Particle _particle;
+
+        public LookForwardBehavior(Particle particle)
         {
+            _particle = particle;
             var alloc = Memory.Allocate(0x10);
             alloc.Pin();
             _distanceVec = MemoryObject.FromAddress<NiPoint3>(alloc.Address + 0x00);
             // TODO: make stuff actually track where the player is looking instead of doing this
             _distanceVec.X = 100f; _distanceVec.Y = -100f; _distanceVec.Z = 500f;
-            this._character = character;
         }
 
-        public override void Apply(Particle particle, float elapsedSeconds)
+        public void Update(float elapsedSeconds)
         {
-            particle.Object.LocalTransform.LookAt(_distanceVec);
+            if (!Active)
+                return;
+
+            _particle.Object.LocalTransform.LookAt(_distanceVec);
         }
     }
 }

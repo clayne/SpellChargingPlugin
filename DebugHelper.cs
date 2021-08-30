@@ -1,4 +1,5 @@
 ﻿using NetScriptFramework.SkyrimSE;
+using NetScriptFramework.Tools;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -11,15 +12,20 @@ namespace SpellChargingPlugin
 {
     public static class DebugHelper
     {
+        private static LogFile _logFile;
+
         public static void Print(string message)
         {
-#if DEBUG
-            if (Settings.LogDebugMessages)
+            if (Settings.Instance.LogDebugMessages)
             {
-                SpellCharging._logFile.AppendLine(message);
+                _logFile?.AppendLine(message);
                 //MenuManager.ShowHUDMessage(message, null, true);
             }
-#endif
+        }
+
+        public static void SetLogFile(LogFile logFile)
+        {
+            _logFile = logFile;
         }
 
         public class ObjectDumper

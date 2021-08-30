@@ -8,19 +8,17 @@ namespace SpellChargingPlugin.StateMachine
 {
     public abstract class State<TContext> where TContext : IStateHolder<TContext>
     {
-        protected StateFactory<TContext> _factory;
         protected TContext _context;
         protected float _timeInState = 0f;
 
-        public State(StateFactory<TContext> factory, TContext context)
+        public State(TContext context)
         {
-            _factory = factory;
             _context = context;
         }
 
         protected void TransitionTo<T>(Func<T> creator) where T : State<TContext>
         {
-            State<TContext> newState = _factory.GetOrCreate(creator);
+            State<TContext> newState = creator();
             newState._timeInState = 0f;
             newState.OnEnterState();
 

@@ -10,7 +10,7 @@ namespace SpellChargingPlugin.States
 {
     public class Cancel : State<ChargingSpell>
     {
-        public Cancel(StateFactory<ChargingSpell> factory, ChargingSpell context) : base(factory, context)
+        public Cancel(ChargingSpell context) : base(context)
         {
         }
 
@@ -21,7 +21,7 @@ namespace SpellChargingPlugin.States
         protected override void OnUpdate(float elapsedSeconds)
         {
             _context.Reset();
-            TransitionTo(() => new Idle(_factory, _context));
+            TransitionTo(() => new Idle(_context));
         }
     }
 }

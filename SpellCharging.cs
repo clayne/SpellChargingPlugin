@@ -29,45 +29,63 @@ namespace SpellChargingPlugin
 			}
 		}
 
-		private NetScriptFramework.Tools.Timer _timer = null;
-		private long? _lastUpdateTime = null;
-		private float _timeSinceLastUpdate = 0f;
-		private Core.ChargingActor _player;
+		private NetScriptFramework.Tools.Timer _gameActiveTimer = null;
+		private long? _lastOnFrameTime = null;
+		private float _elapsedSecondsSinceUpdate = 0f;
 
-		public static NetScriptFramework.Tools.LogFile _logFile;
+		private Core.ChargingActor _chargingPlayer;
 
+		/// <summary>
+		/// NetFramework entry
+		/// </summary>
+		/// <param name="loadedAny"></param>
+		/// <returns></returns>
 		protected override bool Initialize(bool loadedAny)
+        {
+            Init();
+			Register();
+            return true;
+        }
+
+        private void Init()
+        {
+            var logFile = new NetScriptFramework.Tools.LogFile("m3SpellCharging", NetScriptFramework.Tools.LogFileFlags.AutoFlush | NetScriptFramework.Tools.LogFileFlags.IncludeTimestampInLine);
+			DebugHelper.SetLogFile(logFile);
+			
+			_chargingPlayer = new Core.ChargingActor(PlayerCharacter.Instance);
+        }
+
+		/// <summary>
+		/// Register for OnFrame to avoid any lag and make sure things are taken care of asap
+		/// </summary>
+        private void Register()
+        {
+            _gameActiveTimer = new NetScriptFramework.Tools.Timer();
+            _gameActiveTimer.Start();
+
+            Events.OnFrame.Register(e =>
+            {
+                long now = _gameActiveTimer.Time;
+                long elapsedMilliSeconds = 0;
+                if (_lastOnFrameTime.HasValue)
+                    elapsedMilliSeconds = now - _lastOnFrameTime.Value;
+                _lastOnFrameTime = now;
+                Update(elapsedMilliSeconds / 1000.0f);
+            });
+        }
+
+        private void Update(float elapsedSeconds)
 		{
-			_logFile = new NetScriptFramework.Tools.LogFile("spellcharging", NetScriptFramework.Tools.LogFileFlags.AutoFlush | NetScriptFramework.Tools.LogFileFlags.IncludeTimestampInLine);
-			_player = new Core.ChargingActor();
-           
-			_timer = new NetScriptFramework.Tools.Timer();
-			_timer.Start();
-
-			Events.OnFrame.Register(e =>
-			{
-				long now = _timer.Time;
-				long elapsedMilliSeconds = 0;
-				if (_lastUpdateTime.HasValue)
-					elapsedMilliSeconds = now - _lastUpdateTime.Value;
-				_lastUpdateTime = now;
-				Update(elapsedMilliSeconds / 1000.0f);
-			});
-
-			return true;
-		}
-
-		private void Update(float elapsedSeconds)
-		{
+			// Without this check, spell charging would work while you are inside menus (without SkySouls or other un-pauser plugins)
 			var main = NetScriptFramework.SkyrimSE.Main.Instance;
 			if (main?.IsGamePaused != false)
 				return;
 
-			_timeSinceLastUpdate += elapsedSeconds;
-			if (_timeSinceLastUpdate < Settings.UpdateRate)
+			_elapsedSecondsSinceUpdate += elapsedSeconds;
+			if (_elapsedSecondsSinceUpdate < Settings.MainLoopUPS)
 				return;
-			_player.Update(_timeSinceLastUpdate);
-			_timeSinceLastUpdate = 0f;
+			_chargingPlayer.Update(_elapsedSecondsSinceUpdate);
+			_elapsedSecondsSinceUpdate = 0f;
 		}
 	}
 }

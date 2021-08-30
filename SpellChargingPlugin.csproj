@@ -57,14 +57,13 @@
   <ItemGroup>
     <Compile Include="Core\ChargingActor.cs" />
     <Compile Include="Core\ChargingSpell.cs" />
+    <Compile Include="Core\SpellPowerManager.cs" />
     <Compile Include="ParticleSystem\Behaviors\BreatheBehavior.cs" />
     <Compile Include="ParticleSystem\Behaviors\FadeBehavior.cs" />
-    <Compile Include="ParticleSystem\Behaviors\LookAtBehavior.cs" />
+    <Compile Include="ParticleSystem\Behaviors\LookForwardBehavior.cs" />
     <Compile Include="ParticleSystem\Behaviors\OrbitBehavior.cs" />
     <Compile Include="ParticleSystem\Particle.cs" />
     <Compile Include="ParticleSystem\ParticleBehavior.cs" />
-    <Compile Include="Core\PowerModifier.cs" />
-    <Compile Include="Core\SpellPower.cs" />
     <Compile Include="DebugHelper.cs" />
     <Compile Include="ParticleSystem\ParticleEngine.cs" />
     <Compile Include="Settings.cs" />
@@ -73,12 +72,12 @@
     <Compile Include="SpellHelper.cs" />
     <Compile Include="StateMachine\IStateHolder.cs" />
     <Compile Include="StateMachine\State.cs" />
-    <Compile Include="StateMachine\StateFactory.cs" />
     <Compile Include="States\Cancel.cs" />
     <Compile Include="States\Charging.cs" />
     <Compile Include="States\FadeParticles.cs" />
     <Compile Include="States\Idle.cs" />
     <Compile Include="States\Release.cs" />
+    <Compile Include="Util.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NetScriptFramework.dll" />

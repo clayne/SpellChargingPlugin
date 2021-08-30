@@ -10,7 +10,7 @@ namespace SpellChargingPlugin.States
 {
     public class Charging : State<ChargingSpell>
     {
-        public Charging(StateFactory<ChargingSpell> factory, ChargingSpell context) : base(factory, context)
+        public Charging(ChargingSpell context) : base(context)
         {
         }
 
@@ -20,7 +20,7 @@ namespace SpellChargingPlugin.States
         /// <param name="elapsedSeconds"></param>
         protected override void OnUpdate(float elapsedSeconds)
         {
-            var handState = SpellHelper.GetHandSpellState(_context.Holder.Character, _context.Slot);
+            var handState = SpellHelper.GetSpellAndState(_context.Holder.Actor, _context.Slot);
             
             switch (handState?.State)
             {
@@ -32,12 +32,12 @@ namespace SpellChargingPlugin.States
                     _context.UpdateCharge(elapsedSeconds);
                     break;
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.Released:
-                    TransitionTo(() => new Release(_factory, _context));
+                    TransitionTo(() => new Release(_context));
                     break;
                 case NetScriptFramework.SkyrimSE.MagicCastingStates.None:
                 case null:
                 default:
-                    TransitionTo(() => new Cancel(_factory, _context));
+                    TransitionTo(() => new Cancel(_context));
                     break;
             }
         }

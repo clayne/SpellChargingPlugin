@@ -11,15 +11,15 @@ namespace SpellChargingPlugin.States
 {
     public class FadeParticles : State<ChargingSpell>
     {
-        public FadeParticles(StateFactory<ChargingSpell> factory, ChargingSpell context) : base(factory, context)
+        public FadeParticles(ChargingSpell context) : base( context)
         {
         }
 
         protected override void OnUpdate(float elapsedSeconds)
         {
-            _context.ParticleEngine.Behaviors.Add(new FadeBehavior(1.0f));
+            _context.Particle.Behaviors.Add(new FadeBehavior(1.0f));
 
-            TransitionTo(() => new Idle(_factory, _context));
+            TransitionTo(() => new Idle(_context));
         }
     }
 }

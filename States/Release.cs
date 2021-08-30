@@ -10,13 +10,13 @@ namespace SpellChargingPlugin.States
 {
     public class Release : State<ChargingSpell>
     {
-        public Release(StateFactory<ChargingSpell> factory, ChargingSpell context) : base(factory, context)
+        public Release(ChargingSpell context) : base(context)
         {
         }
 
         protected override void OnUpdate(float elapsedSeconds)
         {
-            TransitionTo(() => new FadeParticles(_factory, _context));
+            TransitionTo(() => new FadeParticles(_context));
         }
     }
 }
