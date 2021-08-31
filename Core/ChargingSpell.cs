@@ -60,9 +60,7 @@ namespace SpellChargingPlugin.Core
                 {
                     eff.Effect?.MagicProjectile?.ModelName?.Text,  // may look stupid with some spells
                     eff.Effect?.CastingArt?.ModelName?.Text,       // this usually works best, but some spells have bad or no (visible) casting art
-                    eff.Effect?.DualCastingArt?.ModelName?.Text,   // dunno, should work maybe
                     eff.Effect?.HitEffectArt?.ModelName?.Text,     // probably looks dumb
-                    eff.Effect?.EnchantEffectArt?.ModelName?.Text, // dunno
                 }
                 .Where(s => string.IsNullOrEmpty(s) == false);
             }).Distinct().Take((int)Settings.Instance.ParticleLayers).Select(nif => Particle.Create(nif)).ToList();
