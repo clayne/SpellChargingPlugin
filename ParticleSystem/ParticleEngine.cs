@@ -11,8 +11,11 @@ namespace SpellChargingPlugin.ParticleSystem
 {
     public partial class ParticleEngine
     {
-        private readonly List<Particle> _activeParticles;
-        private int _maxParticles;
+        public static uint GlobalParticleCount { get; set; }
+
+        private readonly List<Particle> _activeParticles = new List<Particle>();
+        private uint _maxParticles;
+        
 
         public void Clear()
         {
@@ -21,18 +24,33 @@ namespace SpellChargingPlugin.ParticleSystem
                 item.Dispose();
             }
             _activeParticles.Clear();
+            if (GlobalParticleCount != 0)
+                DebugHelper.Print($"[ParticleEngine] Not all particles reset?");
         }
 
         public void Add(Particle newParticle)
         {
-            if(_activeParticles.Count < _maxParticles)
-                _activeParticles.Add(newParticle);
+            if (_activeParticles.Count >= _maxParticles)
+                return;
+            _activeParticles.Add(newParticle);
+            ++GlobalParticleCount;
         }
 
+        private float __timer = 0f;
         public void Update(float elapsedSeconds)
         {
             if (!_activeParticles.Any())
                 return;
+
+            if (Settings.Instance.LogDebugMessages)
+            {
+                __timer += elapsedSeconds;
+                if(__timer > 5.0f)
+                {
+                    DebugHelper.Print($"[ParticleEngine] #{this.GetHashCode():X} Particles: {_activeParticles.Count} of global total {GlobalParticleCount}");
+                    __timer = 0.0f;
+                }
+            }
 
             int i = 0;
             while (i < _activeParticles.Count)
@@ -44,13 +62,13 @@ namespace SpellChargingPlugin.ParticleSystem
                 {
                     _activeParticles.RemoveAt(i);
                     particle.Dispose();
-                    continue;
+                    --i;
                 }
                 ++i;
             }
         }
 
-        public static ParticleEngine Create(int maxParticles)
+        public static ParticleEngine Create(uint maxParticles)
         {
             var ret = new ParticleEngine()
             {

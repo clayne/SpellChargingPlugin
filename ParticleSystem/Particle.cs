@@ -18,13 +18,15 @@ namespace SpellChargingPlugin.ParticleSystem
 
         public static Particle Create(string nifPath)
         {
+            if (string.IsNullOrEmpty(nifPath))
+                return null;
             var obj = Util.LoadNif(nifPath).Clone() as NiAVObject;
+            //DebugHelper.Print($"Particle obj: {obj}");
             Particle ret = new Particle()
             {
                 _niAvObject = obj,
                 Delete = false,
             };
-            obj.IncRef();
             return ret;
         }
 
@@ -35,6 +37,8 @@ namespace SpellChargingPlugin.ParticleSystem
             _niAvObject.Detach();
             _niAvObject.DecRef();
             _niAvObject = null;
+            _behaviors.Clear();
+            --ParticleEngine.GlobalParticleCount;
         }
 
         public void Update(float elapsedSeconds)
@@ -75,9 +79,10 @@ namespace SpellChargingPlugin.ParticleSystem
         {
             var ret = new Particle()
             {
-                _niAvObject = this._niAvObject.Clone() as NiAVObject,
+                _niAvObject = _niAvObject.Clone() as NiAVObject,
                 Delete = false,
             };
+            //DebugHelper.Print($"Cloned: {_niAvObject.Name} ({_niAvObject.Address} -> {ret._niAvObject.Address})");
             return ret;
         }
 
@@ -94,6 +99,7 @@ namespace SpellChargingPlugin.ParticleSystem
                 Memory.WriteFloat(mptr + 0x130, fadeValue);
                 Memory.WriteFloat(mptr + 0x140, fadeValue);
             }
+            //DebugHelper.Print($"Fade: {_niAvObject.Name} set to {fadeValue}");
             return this;
         }
 
@@ -112,12 +118,14 @@ namespace SpellChargingPlugin.ParticleSystem
                 pt.Z = (float)offset.Z;
                 _niAvObject.LocalTransform.Translate(pt, _niAvObject.LocalTransform.Position);
             }
+            //DebugHelper.Print($"Translation: {_niAvObject.Name} set to {_niAvObject.LocalTransform.Position}");
             return this;
         }
 
         public Particle AddBehavior(IParticleBehavior behavior)
         {
             _behaviors.Add(behavior);
+            //DebugHelper.Print($"Behavior: {_niAvObject.Name} added {behavior}");
             return this;
         }
     }

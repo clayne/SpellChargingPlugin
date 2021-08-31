@@ -16,7 +16,7 @@ namespace SpellChargingPlugin.States
 
         protected override void OnUpdate(float elapsedSeconds)
         {
-            TransitionTo(() => new FadeParticles(_context));
+            TransitionTo(() => new Idle(_context));
         }
     }
 }

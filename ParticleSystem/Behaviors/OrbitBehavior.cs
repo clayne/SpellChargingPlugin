@@ -9,25 +9,27 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
     /// </summary>
     public class OrbitBehavior : IParticleBehavior
     {
-        public bool Active { get; set; }
+        public Func<bool> Active { get; set; } = () => true;
 
         private readonly Vector3D _center;
         private readonly Vector3D _axis;
         private readonly Particle _particle;
+        private readonly float _speedFactor;
 
-        public OrbitBehavior(Particle particle, Vector3D center, Vector3D axis)
+        public OrbitBehavior(Particle particle, Vector3D center, Vector3D axis, float speedFactor)
         {
             _particle = particle;
             _center = center;
             _axis = axis;
+            _speedFactor = speedFactor;
         }
 
         public void Update(float elapsedSeconds)
         {
-            if (!Active)
+            if (!Active())
                 return;
 
-            Rotate(_particle.Object.LocalTransform.Position, _center, _axis, 180f * elapsedSeconds);
+            Rotate(_particle.Object.LocalTransform.Position, _center, _axis, 180f * elapsedSeconds * _speedFactor);
         }
 
         private void Rotate(NiPoint3 point, Vector3D rotationCenter, Vector3D axis, double angle)

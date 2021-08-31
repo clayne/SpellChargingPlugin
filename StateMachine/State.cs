@@ -22,7 +22,7 @@ namespace SpellChargingPlugin.StateMachine
             newState._timeInState = 0f;
             newState.OnEnterState();
 
-            DebugHelper.Print($"State change: {_context.CurrentState.GetType().Name} => {newState.GetType().Name}");
+            DebugHelper.Print($"[State] Change: {_context.CurrentState.GetType().Name} => {newState.GetType().Name}");
 
             _context.CurrentState = newState;
         }

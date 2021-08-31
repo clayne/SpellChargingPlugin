@@ -60,7 +60,7 @@
     <Compile Include="Core\SpellPowerManager.cs" />
     <Compile Include="ParticleSystem\Behaviors\BreatheBehavior.cs" />
     <Compile Include="ParticleSystem\Behaviors\FadeBehavior.cs" />
-    <Compile Include="ParticleSystem\Behaviors\LookForwardBehavior.cs" />
+    <Compile Include="ParticleSystem\Behaviors\AimForwardBehavior.cs" />
     <Compile Include="ParticleSystem\Behaviors\OrbitBehavior.cs" />
     <Compile Include="ParticleSystem\Particle.cs" />
     <Compile Include="ParticleSystem\ParticleBehavior.cs" />
@@ -74,7 +74,6 @@
     <Compile Include="StateMachine\State.cs" />
     <Compile Include="States\Cancel.cs" />
     <Compile Include="States\Charging.cs" />
-    <Compile Include="States\FadeParticles.cs" />
     <Compile Include="States\Idle.cs" />
     <Compile Include="States\Release.cs" />
     <Compile Include="Util.cs" />

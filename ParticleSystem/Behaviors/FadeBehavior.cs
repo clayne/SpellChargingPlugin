@@ -8,24 +8,28 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
 {
     public class FadeBehavior : IParticleBehavior
     {
-        public bool Active { get; set; }
+        public Func<bool> Active { get; set; } = () => true;
 
         private readonly Particle _particle;
-        private readonly float _duration;
+        private readonly float _delta;
 
-        public FadeBehavior(Particle particle, float duration)
+        public FadeBehavior(Particle particle, float maxDuration)
         {
             _particle = particle;
-            _duration = duration;
+            _delta = particle.Object.LocalTransform.Scale / maxDuration;
         }
 
         // TODO: does this even work as intended?
         public void Update(float elapsedSeconds)
         {
-            if (!Active)
+            if (!Active())
                 return;
 
-            _particle.SetScale(_particle.Object.LocalTransform.Scale - 1.1337f * elapsedSeconds / _duration);
+            if (_particle.Delete)
+                return;
+
+            var newScale = _particle.Object.LocalTransform.Scale - _delta * elapsedSeconds;
+            _particle.SetScale(newScale);
             if (_particle.Object.LocalTransform.Scale <= 0)
                 _particle.Delete = true;
         }

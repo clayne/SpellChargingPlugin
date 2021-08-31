@@ -1,4 +1,5 @@
-﻿using SpellChargingPlugin.Core;
+﻿using NetScriptFramework.SkyrimSE;
+using SpellChargingPlugin.Core;
 using SpellChargingPlugin.ParticleSystem.Behaviors;
 using SpellChargingPlugin.StateMachine;
 using System;
@@ -19,35 +20,31 @@ namespace SpellChargingPlugin.States
 
         protected override void OnUpdate(float elapsedSeconds)
         {
+            // TODO: move reset & cleanup to separate behavior or something
             var handState = SpellHelper.GetSpellAndState(_context.Holder.Actor, _context.Slot);
             if (handState == null)
             {
                 if (_needsReset) { _context.Reset(); _needsReset = false; }
                 return;
             }
-            if(_needsReset && _timeInState > 10f)
+            if(_needsReset && _timeInState > 5f)
             {
-                DebugHelper.Print($"Idle state auto-cleanup {_context.Spell.Name}");
+                DebugHelper.Print($"[State.Idle] state auto-cleanup {_context.Spell.Name}");
                 _context.Reset();
                 _needsReset = false;
             }
             switch (handState.Value.State)
             {
-                case NetScriptFramework.SkyrimSE.MagicCastingStates.Charged:
-                //case NetScriptFramework.SkyrimSE.MagicCastingStates.Concentrating: // does not work properly (yet)
-                // TODO: move reset & cleanup to separate behavior or something
+                case MagicCastingStates.Charged:
+                case MagicCastingStates.Concentrating: // does not work properly (yet)
+                    if (!Settings.Instance.AllowConcentrationSpells && handState.Value.State == MagicCastingStates.Concentrating)
+                        break;
+                    
                     if (_needsReset)
                     {
                         _context.Reset();
                         _needsReset = false;
                     }
-                    var peb = _context.Particle.Behaviors;
-                    var fadeBehavior = peb.OfType<FadeBehavior>();
-                    foreach (var item in fadeBehavior.ToList())
-                    {
-                        peb.Remove(item);
-                    }
-
                     TransitionTo(() => new Charging(_context));
                     break;
             }

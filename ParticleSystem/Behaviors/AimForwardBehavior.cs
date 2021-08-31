@@ -9,14 +9,14 @@ using System.Threading.Tasks;
 
 namespace SpellChargingPlugin.ParticleSystem.Behaviors
 {
-    public class LookForwardBehavior : IParticleBehavior
+    public class AimForwardBehavior : IParticleBehavior
     {
-        public bool Active { get; set; }
+        public Func<bool> Active { get; set; } = () => true;
 
         private NiPoint3 _distanceVec;
         private Particle _particle;
 
-        public LookForwardBehavior(Particle particle)
+        public AimForwardBehavior(Particle particle)
         {
             _particle = particle;
             var alloc = Memory.Allocate(0x10);
@@ -28,7 +28,7 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
 
         public void Update(float elapsedSeconds)
         {
-            if (!Active)
+            if (!Active())
                 return;
 
             _particle.Object.LocalTransform.LookAt(_distanceVec);

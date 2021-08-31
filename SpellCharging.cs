@@ -11,27 +11,16 @@ namespace SpellChargingPlugin
 {
     public partial class SpellCharging : Plugin
 	{
-		public override string Key {
-			get {
-				return "M3SpellCharging";
-			}
-		}
-
-		public override string Name {
-			get {
-				return "Spellcharging Plugin";
-			}
-		}
-
-		public override int Version {
-			get {
-				return 1;
-			}
-		}
+		public override string Key => "SpellChargingPlugin";
+		public override string Name => "Spellcharging Plugin";
+		public override string Author => "m3ttwur5t";
+		public override int Version => 1;
 
 		private NetScriptFramework.Tools.Timer _gameActiveTimer = null;
 		private long? _lastOnFrameTime = null;
 		private float _elapsedSecondsSinceUpdate = 0f;
+
+		private float _fUpdatesPerSecond = 1.0f / Settings.Instance.UpdatesPerSecond;
 
 		private Core.ChargingActor _chargingPlayer;
 
@@ -49,10 +38,9 @@ namespace SpellChargingPlugin
 
         private void Init()
         {
-            var logFile = new NetScriptFramework.Tools.LogFile("m3SpellCharging", NetScriptFramework.Tools.LogFileFlags.AutoFlush | NetScriptFramework.Tools.LogFileFlags.IncludeTimestampInLine);
+            var logFile = new NetScriptFramework.Tools.LogFile("SpellChargingPlugin", NetScriptFramework.Tools.LogFileFlags.AutoFlush | NetScriptFramework.Tools.LogFileFlags.IncludeTimestampInLine);
 			DebugHelper.SetLogFile(logFile);
-			
-			_chargingPlayer = new Core.ChargingActor(PlayerCharacter.Instance);
+			_chargingPlayer = new Core.ChargingActor();
         }
 
 		/// <summary>
@@ -82,7 +70,7 @@ namespace SpellChargingPlugin
 				return;
 
 			_elapsedSecondsSinceUpdate += elapsedSeconds;
-			if (_elapsedSecondsSinceUpdate < Settings.MainLoopUPS)
+			if (_elapsedSecondsSinceUpdate < _fUpdatesPerSecond)
 				return;
 			_chargingPlayer.Update(_elapsedSecondsSinceUpdate);
 			_elapsedSecondsSinceUpdate = 0f;

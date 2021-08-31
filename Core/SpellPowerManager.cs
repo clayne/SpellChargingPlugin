@@ -57,9 +57,8 @@ namespace SpellChargingPlugin.Core
                     bool hasDur = eff.Duration > 0;
                     modifier *= hasMag && hasDur ? 0.5f : 1f;
                 }
-
-                eff.Magnitude = basePower.Magnitude * (1.0f + modifier);
                 eff.Duration = (int)(basePower.Duration * (1.0f + modifier));
+                eff.Magnitude = basePower.Magnitude * (1.0f + modifier);
             }
         }
     }

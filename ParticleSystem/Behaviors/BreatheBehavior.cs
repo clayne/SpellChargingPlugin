@@ -9,7 +9,7 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
 {
     public class BreatheBehavior : IParticleBehavior
     {
-        public bool Active { get; set; }
+        public Func<bool> Active { get; set; } = () => true;
 
         private readonly float _originalScale;
         private readonly float _minScale;
@@ -20,6 +20,7 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
 
         public BreatheBehavior(Particle particle, float minScaleFactor, float maxScaleFactor, float frequency)
         {
+            _particle = particle;
             _originalScale = particle.Object.LocalTransform.Scale;
             _minScale = _originalScale * minScaleFactor;
             _maxScale = _originalScale * maxScaleFactor;
@@ -29,14 +30,14 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
 
         public void Update(float elapsedSeconds)
         {
-            if (!Active)
+            if (!Active())
                 return;
 
             float newScale;
             if (_isExpanding)
             {
                 newScale = _particle.Object.LocalTransform.Scale + _scaleDelta * elapsedSeconds;
-                _isExpanding = newScale > _maxScale;
+                _isExpanding = newScale <= _maxScale;
             }
             else
             {
@@ -45,6 +46,5 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
             }
             _particle.Object.LocalTransform.Scale = newScale;
         }
-
     }
 }

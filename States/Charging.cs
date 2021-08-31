@@ -1,4 +1,5 @@
-﻿using SpellChargingPlugin.Core;
+﻿using NetScriptFramework.SkyrimSE;
+using SpellChargingPlugin.Core;
 using SpellChargingPlugin.StateMachine;
 using System;
 using System.Collections.Generic;
@@ -24,17 +25,16 @@ namespace SpellChargingPlugin.States
             
             switch (handState?.State)
             {
-                case NetScriptFramework.SkyrimSE.MagicCastingStates.Charging:
+                case MagicCastingStates.Charging:
                     break;
-                case NetScriptFramework.SkyrimSE.MagicCastingStates.Charged:
-                // TODO: concentration
-                // case NetScriptFramework.SkyrimSE.MagicCastingStates.Concentrating:
+                case MagicCastingStates.Charged:
+                case MagicCastingStates.Concentrating:
                     _context.UpdateCharge(elapsedSeconds);
                     break;
-                case NetScriptFramework.SkyrimSE.MagicCastingStates.Released:
+                case MagicCastingStates.Released:
                     TransitionTo(() => new Release(_context));
                     break;
-                case NetScriptFramework.SkyrimSE.MagicCastingStates.None:
+                case MagicCastingStates.None:
                 case null:
                 default:
                     TransitionTo(() => new Cancel(_context));

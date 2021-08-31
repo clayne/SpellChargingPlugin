@@ -24,14 +24,17 @@ namespace SpellChargingPlugin
                             {
                                 if (p.Result[0] is NiAVObject obj)
                                 {
-                                    DebugHelper.Print($"NIF: {nifPath} cached");
+                                    DebugHelper.Print($"[Util] NIF: {nifPath} loaded");
                                     toLoad = obj;
+                                    toLoad.IncRef();
                                     _nifCache.Add(nifPath, toLoad);
+                                    DebugHelper.Print($"[Util] NIF: {nifPath} cached");
                                 }
                             }
                         }
                     });
             }
+            DebugHelper.Print($"[Util] NIF: Returning {toLoad} ({toLoad?.Name})");
             return toLoad;
         }
     }

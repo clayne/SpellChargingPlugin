@@ -10,15 +10,34 @@ namespace SpellChargingPlugin.Core
 {
     public class ChargingActor
     {
-        public Character Actor { get; }
+        public Character Actor => PlayerCharacter.Instance; // Currently only works on the player. Would be fun to see NPCs use this feature.
         public ChargingSpell LeftSpell { get; private set; }
         public ChargingSpell RightSpell { get; private set; }
+        public TESCameraStates CameraState { get; private set; }
 
         bool _leftEqualsRight = false;
 
-        public ChargingActor(Character character)
+        public ChargingActor()
         {
-            Actor = character;
+            Register();
+        }
+
+        private void Register()
+        {
+            DebugHelper.Print($"[ChargingActor] Register OnUpdateCamera");
+            Events.OnUpdateCamera.Register(e =>
+            {
+                var id = e.Camera.State.Id;
+                if (id == CameraState)
+                    return;
+                CameraState = id;
+                if (id == TESCameraStates.FirstPerson || id == TESCameraStates.ThirdPerson1 || id == TESCameraStates.ThirdPerson2)
+                {
+                    DebugHelper.Print($"[ChargingActor] Camera switch to {CameraState}. Expect funny visuals!");
+                    LeftSpell?.UpdateParticleNode();
+                    RightSpell?.UpdateParticleNode();
+                }
+            });
         }
 
         public void Update(float elapsedSeconds)
@@ -26,7 +45,7 @@ namespace SpellChargingPlugin.Core
             AssignSpellsIfNecessary();
 
             LeftSpell?.Update(elapsedSeconds);
-            if(!_leftEqualsRight)
+            if (!_leftEqualsRight)
                 RightSpell?.Update(elapsedSeconds);
         }
 
@@ -36,39 +55,46 @@ namespace SpellChargingPlugin.Core
         /// </summary>
         private void AssignSpellsIfNecessary()
         {
-            var leftSpell = SpellHelper.GetSpell(Actor, EquippedSpellSlots.LeftHand);
+            var curLeft = SpellHelper.GetSpell(Actor, EquippedSpellSlots.LeftHand);
 
-            if (leftSpell == null && LeftSpell != null)
-                LeftSpell = ClearSpell(LeftSpell);
-            else if (LeftSpell?.Equals(leftSpell) != true)
+            if (curLeft == null)
             {
-                LeftSpell = SetSpell(leftSpell, EquippedSpellSlots.LeftHand);
-                _leftEqualsRight = LeftSpell.IsTwoHanded;
+                LeftSpell = ClearSpell(LeftSpell);
+                _leftEqualsRight = false;
+            }
+            else if (LeftSpell == null || LeftSpell.Spell.FormId != curLeft.FormId)
+            {
+                ClearSpell(LeftSpell);
+                LeftSpell = SetSpell(curLeft, EquippedSpellSlots.LeftHand);
+                _leftEqualsRight = LeftSpell.IsTwoHanded == true;
             }
 
             // Can skip right hand check and assignment when using master-tier or other two-handed spells.
             if (!_leftEqualsRight)
             {
-                var rightSpell = SpellHelper.GetSpell(Actor, EquippedSpellSlots.RightHand);
-
-                if (rightSpell == null && RightSpell != null)
+                var curRight = SpellHelper.GetSpell(Actor, EquippedSpellSlots.RightHand);
+                if (curRight == null)
+                {
                     RightSpell = ClearSpell(RightSpell);
-                else if (RightSpell?.Equals(rightSpell) != true)
-                    RightSpell = SetSpell(rightSpell, EquippedSpellSlots.RightHand);
+                }
+                else if (RightSpell == null || RightSpell.Spell.FormId != curRight.FormId)
+                {
+                    ClearSpell(RightSpell);
+                    RightSpell = SetSpell(curRight, EquippedSpellSlots.RightHand);
+                }
             }
         }
 
         private ChargingSpell ClearSpell(ChargingSpell spell)
         {
-            spell.Reset();
+            spell?.Reset();
             return null;
         }
 
         private ChargingSpell SetSpell(SpellItem spellItem, EquippedSpellSlots handSlot)
         {
-            DebugHelper.Print($"Hand: {handSlot} -> {spellItem.Name}");
-            var isTwoHandedSpell = spellItem.EquipSlot?.FormId == Settings.Instance.EquipBothFormID;
-            var ret = new ChargingSpell(this, spellItem, isTwoHandedSpell ? EquippedSpellSlots.Other : handSlot);
+            DebugHelper.Print($"[ChargingActor] Hand: {handSlot} -> {spellItem?.Name}");
+            var ret = new ChargingSpell(this, spellItem, handSlot);
             return ret;
         }
     }
