@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpellChargingPlugin
@@ -13,13 +14,14 @@ namespace SpellChargingPlugin
     public static class DebugHelper
     {
         private static LogFile _logFile;
-
+        private static SemaphoreSlim _semaphore = new SemaphoreSlim(1);
         public static void Print(string message)
         {
             if (Settings.Instance.LogDebugMessages)
             {
+                _semaphore.Wait();
                 _logFile?.AppendLine(message);
-                //MenuManager.ShowHUDMessage(message, null, true);
+                _semaphore.Release();
             }
         }
 

@@ -37,5 +37,23 @@ namespace SpellChargingPlugin
             DebugHelper.Print($"[Util] NIF: Returning {toLoad} ({toLoad?.Name})");
             return toLoad;
         }
+
+        public class SimpleAverager
+        {
+            private float[] _history;
+            private int _histIndex = 0;
+            public SimpleAverager(uint history)
+            {
+                _history = new float[history];
+            }
+
+            public float GetAverage(float current)
+            {
+                _history[_histIndex++] = current;
+                if (_histIndex >= _history.Length)
+                    _histIndex = 0;
+                return _history.Average();
+            }
+        }
     }
 }

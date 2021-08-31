@@ -32,6 +32,7 @@ namespace SpellChargingPlugin.ParticleSystem.Behaviors
             Rotate(_particle.Object.LocalTransform.Position, _center, _axis, 180f * elapsedSeconds * _speedFactor);
         }
 
+        // TODO: there is probably a more efficient way (caching? AVX?)
         private void Rotate(NiPoint3 point, Vector3D rotationCenter, Vector3D axis, double angle)
         {
             // create empty matrix

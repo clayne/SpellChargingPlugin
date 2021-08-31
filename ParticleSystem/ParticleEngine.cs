@@ -2,9 +2,11 @@
 using NetScriptFramework.SkyrimSE;
 using SpellChargingPlugin.ParticleSystem.Behaviors;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpellChargingPlugin.ParticleSystem
@@ -13,9 +15,23 @@ namespace SpellChargingPlugin.ParticleSystem
     {
         public static uint GlobalParticleCount { get; set; }
 
-        private readonly List<Particle> _activeParticles = new List<Particle>();
+        private ParallelOptions _parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = 2 };
+
+        private ConcurrentBag<Particle> _activeParticles = new ConcurrentBag<Particle>();
         private uint _maxParticles;
-        
+
+        private readonly float _fMaxUpdateTime = 1f / Settings.Instance.UpdatesPerSecond;
+        private Util.SimpleAverager _averageUtil = new Util.SimpleAverager(Settings.Instance.UpdatesPerSecond);
+
+        private ParticleEngine() { }
+        public static ParticleEngine Create(uint maxParticles)
+        {
+            var ret = new ParticleEngine()
+            {
+                _maxParticles = maxParticles,
+            };
+            return ret;
+        }
 
         public void Clear()
         {
@@ -23,7 +39,8 @@ namespace SpellChargingPlugin.ParticleSystem
             {
                 item.Dispose();
             }
-            _activeParticles.Clear();
+            while (!_activeParticles.IsEmpty)
+                _activeParticles.TryTake(out var _);
             if (GlobalParticleCount != 0)
                 DebugHelper.Print($"[ParticleEngine] Not all particles reset?");
         }
@@ -36,45 +53,62 @@ namespace SpellChargingPlugin.ParticleSystem
             ++GlobalParticleCount;
         }
 
-        private float __timer = 0f;
         public void Update(float elapsedSeconds)
         {
             if (!_activeParticles.Any())
                 return;
 
-            if (Settings.Instance.LogDebugMessages)
+            // TODO: see if any this actually works
+
+            // throttle particle updates if engine can't keep up
+            // normally not necessary when particle limit is set to a sensible value of below 1000
+            // but i want more fancy particles...
+            var avg = _averageUtil.GetAverage(elapsedSeconds);
+            if (avg > _fMaxUpdateTime)
             {
-                __timer += elapsedSeconds;
-                if(__timer > 5.0f)
-                {
-                    DebugHelper.Print($"[ParticleEngine] #{this.GetHashCode():X} Particles: {_activeParticles.Count} of global total {GlobalParticleCount}");
-                    __timer = 0.0f;
-                }
+                DebugHelper.Print($"[ParticleEngine] Skip Update (avg: {avg}ms)");
+                return;
             }
 
-            int i = 0;
-            while (i < _activeParticles.Count)
-            {
-                var particle = _activeParticles[i];
-                particle.Update(elapsedSeconds);
+            if (_activeParticles.Count < 200)
+                UpdateSingleThreaded(elapsedSeconds);
+            else
+                UpdateInParallel(elapsedSeconds);
 
-                if (particle.Delete)
+            if (_activeParticles.Any(p => p.Delete))
+                DeleteParticles();
+        }
+
+        private void UpdateSingleThreaded(float elapsedSeconds)
+        {
+            foreach (var p in _activeParticles)
+                p.Update(elapsedSeconds);
+        }
+
+        // TODO: test! will probably throw access violations
+        private void UpdateInParallel(float elapsedSeconds)
+        {
+            try
+            {
+                Parallel.ForEach(_activeParticles, _parallelOptions, p =>
                 {
-                    _activeParticles.RemoveAt(i);
-                    particle.Dispose();
-                    --i;
-                }
-                ++i;
+                    DebugHelper.Print($"[ParticleEngine] Parallel TID: {Thread.CurrentThread.ManagedThreadId}");
+                    p.Update(elapsedSeconds);
+                });
+            }
+            catch (Exception ex)
+            {
+                DebugHelper.Print($"[ParticleEngine] Parallel.Foreach Threw exception {ex.Message}");
             }
         }
 
-        public static ParticleEngine Create(uint maxParticles)
+        // TODO: check performance
+        private void DeleteParticles()
         {
-            var ret = new ParticleEngine()
-            {
-                _maxParticles = maxParticles,
-            };
-            return ret;
+            var toRemove = _activeParticles.Where(p => p.Delete);
+            foreach (var p in toRemove)
+                p.Dispose();
+            _activeParticles = new ConcurrentBag<Particle>(_activeParticles.Where(p => !p.Delete));
         }
     }
 }
