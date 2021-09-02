@@ -70,6 +70,7 @@
     <Compile Include="SpellCharging.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SpellHelper.cs" />
+    <Compile Include="SpellVictimContainer.cs" />
     <Compile Include="StateMachine\IStateHolder.cs" />
     <Compile Include="StateMachine\State.cs" />
     <Compile Include="States\Cancel.cs" />

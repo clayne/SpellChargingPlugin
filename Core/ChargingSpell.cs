@@ -134,23 +134,23 @@ namespace SpellChargingPlugin.Core
                 return;
 
             int localParticleCount = (int)(chargeLevel / Settings.Instance.ChargesPerParticle);
-            float fadeFactor = 1f - 50f / (50f + localParticleCount);
-            float speedFactor = 2f - fadeFactor;
-            int distanceFactor = (int)(localParticleCount * (1f - fadeFactor * fadeFactor));
+            float fadeFactor = 1f - 100f / (100f + localParticleCount);
+            float speedFactor = 1f + fadeFactor;
+            int distanceFactor = (int)Math.Sqrt(localParticleCount * (1f - fadeFactor));
 
             if (IsTwoHanded)
-                distanceFactor *= 3;
+                distanceFactor *= 4;
 
-            float r1 = (5f + Randomizer.NextInt(distanceFactor/2, (distanceFactor * 2) / 3)) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r2 = (5f + Randomizer.NextInt(distanceFactor/2, (distanceFactor * 2) / 3)) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r3 = (5f + Randomizer.NextInt(distanceFactor/2, (distanceFactor * 2) / 3)) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r1 = (5f + Randomizer.NextInt(distanceFactor, (distanceFactor * 3) / 2)) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r2 = (5f + Randomizer.NextInt(distanceFactor, (distanceFactor * 3) / 2)) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r3 = (5f + Randomizer.NextInt(distanceFactor, (distanceFactor * 3) / 2)) * (Randomizer.Roll(0.5) ? -1f : 1f);
 
             int a1 = Randomizer.NextInt(-1, 1);
             int a2 = Randomizer.NextInt(-1, 1);
             int a3 = a1 == 0 && a2 == 0 ? 1 : Randomizer.NextInt(-1, 1);
 
             var scale = Randomizer.NextInt(166, 333) * 0.001f;
-            var fade = 0.25f + 0.75f * fadeFactor;
+            var fade = 0.5f + 0.5f * fadeFactor;
 
             var translate = new Vector3D(r1, r2, r3 * 0.8f);
 
@@ -168,10 +168,10 @@ namespace SpellChargingPlugin.Core
 
                 newParticle.AddBehavior(new OrbitBehavior(newParticle, new Vector3D(0, 0, 0), new Vector3D(a1, a2, a3), speedFactor));
                 newParticle.AddBehavior(new AimForwardBehavior(newParticle));
-                newParticle.AddBehavior(new BreatheBehavior(newParticle, 0.1f, 1f, 5f)  
-                    { Active = () => CurrentState is States.Charging });
-                newParticle.AddBehavior(new FadeBehavior(newParticle, 0.5f)             
-                    { Active = () => !(CurrentState is States.Charging) });
+                newParticle.AddBehavior(new BreatheBehavior(newParticle, 0.1f, 1f, 5f)
+                { Active = () => CurrentState is States.Charging });
+                newParticle.AddBehavior(new FadeBehavior(newParticle, 0.5f)
+                { Active = () => !(CurrentState is States.Charging) });
 
                 _particleEngine.Add(newParticle);
             }

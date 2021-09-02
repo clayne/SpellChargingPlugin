@@ -51,6 +51,8 @@ namespace SpellChargingPlugin.ParticleSystem
                 return;
             _activeParticles.Add(newParticle);
             ++GlobalParticleCount;
+            if (GlobalParticleCount % 100 == 0)
+                DebugHelper.Print($"[ParticleEngine] Total particles: {GlobalParticleCount}");
         }
 
         public void Update(float elapsedSeconds)
@@ -58,22 +60,7 @@ namespace SpellChargingPlugin.ParticleSystem
             if (!_activeParticles.Any())
                 return;
 
-            // TODO: see if any this actually works
-
-            // throttle particle updates if engine can't keep up
-            // normally not necessary when particle limit is set to a sensible value of below 1000
-            // but i want more fancy particles...
-            var avg = _averageUtil.GetAverage(elapsedSeconds);
-            if (avg > _fMaxUpdateTime)
-            {
-                DebugHelper.Print($"[ParticleEngine] Skip Update (avg: {avg}ms)");
-                return;
-            }
-
-            if (_activeParticles.Count < 200)
-                UpdateSingleThreaded(elapsedSeconds);
-            else
-                UpdateInParallel(elapsedSeconds);
+            UpdateSingleThreaded(elapsedSeconds);
 
             if (_activeParticles.Any(p => p.Delete))
                 DeleteParticles();
@@ -83,23 +70,6 @@ namespace SpellChargingPlugin.ParticleSystem
         {
             foreach (var p in _activeParticles)
                 p.Update(elapsedSeconds);
-        }
-
-        // TODO: test! will probably throw access violations
-        private void UpdateInParallel(float elapsedSeconds)
-        {
-            try
-            {
-                Parallel.ForEach(_activeParticles, _parallelOptions, p =>
-                {
-                    DebugHelper.Print($"[ParticleEngine] Parallel TID: {Thread.CurrentThread.ManagedThreadId}");
-                    p.Update(elapsedSeconds);
-                });
-            }
-            catch (Exception ex)
-            {
-                DebugHelper.Print($"[ParticleEngine] Parallel.Foreach Threw exception {ex.Message}");
-            }
         }
 
         // TODO: check performance
