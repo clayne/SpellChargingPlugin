@@ -60,6 +60,35 @@ namespace SpellChargingPlugin
                 _lastOnFrameTime = now;
                 Update(elapsedMilliSeconds / 1000.0f);
             });
+
+			// TODO: try out this very naive approach
+			// ActiveEffect::CalculateDurationAndMagnitude_14053DF40
+			// void __fastcall sub(ActiveEffect* a1, Character* a2, MagicTarget* a3)
+			IntPtr addr_UpdateActiveEffectMagnitude = new IntPtr(0x14053DF40).FromBase();
+            Memory.WriteHook(new HookParameters()
+			{
+				Address = addr_UpdateActiveEffectMagnitude,
+				IncludeLength = 10,
+				ReplaceLength = 10,
+				Before = ctx =>
+                {
+					// POINTER to effect, right?
+					var effPtr = Memory.ReadPointer(ctx.CX);
+					// "dereference" to get actual effect
+					var eff = MemoryObject.FromAddress<ActiveEffect>(effPtr);
+
+
+					float elapsed = Memory.ReadFloat(eff.Address + 0x48);
+					float duration = Memory.ReadFloat(eff.Address + 0x4C);
+					float magnitude = Memory.ReadFloat(eff.Address + 0x80);
+					DebugHelper.Print($"Eff: {NativeCrashLog.GetValueInfo(eff.Address)} Elapsed: {elapsed}, Dur: {duration}, Mag: {magnitude}");
+
+					// defined as a getter only here; can i still write to it?
+					DebugHelper.Print($"Try writing to {eff.Address + 0x4C : X}");
+					Memory.WriteFloat(eff.Address + 0x4C, 999f, true);
+                }
+				
+			});
         }
 
         private void Update(float elapsedSeconds)
