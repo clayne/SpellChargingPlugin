@@ -43,6 +43,9 @@ namespace SpellChargingPlugin.StateMachine.States
             }
         }
 
+        // These SHOULD be enough to track whether or not the player is still firing spells and keep the "victims" inside
+        // ActiveEffectTracker alive until the player stops, at which point there SHOULD be no more ActiveEffects to update
+        // and the cache can be thrown away
         protected override void OnEnterState()
         {
             ++_chargingInstances;

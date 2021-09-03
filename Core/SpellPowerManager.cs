@@ -51,7 +51,18 @@ namespace SpellChargingPlugin.Core
         {
             foreach (var eff in _managedSpell.Effects)
             {
-                RefreshPower(eff);
+                var basePower = SpellHelper.GetBasePower(eff);
+                var modifier = _growth * _multiplier;
+
+                if (modifier > 0.0f && Settings.Instance.HalfPowerWhenMagAndDur && !_isConcentration)
+                {
+                    bool hasMag = eff.Magnitude > 0f;
+                    bool hasDur = eff.Duration > 0;
+                    modifier *= hasMag && hasDur ? 0.5f : 1f;
+                }
+
+                RefreshPower(eff, basePower, modifier);
+                RefreshArea(eff, basePower, modifier);
 
                 if (!_isConcentration)
                     continue;
@@ -59,15 +70,28 @@ namespace SpellChargingPlugin.Core
                 if (eff.Effect.Archetype == Archetypes.PeakValueMod)
                     continue;
 
-                RefreshActiveEffects(eff);
+                RefreshActiveEffects(eff, basePower, modifier);
             }
+        }
+
+
+        /// <summary>
+        /// Experimental buff to area (may not work)
+        /// </summary>
+        /// <param name="eff"></param>
+        private void RefreshArea(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
+        {
+            // This easy? Needs testing. 
+            eff.Area = (int)(basePower.Area * modifier);
+            // What about projectile/visual effect scaling?
+            //ScaleVisual(_managedSpell);
         }
 
         /// <summary>
         /// Refresh ActiveEffects on targets affected by this effect (should only be needed with Concentration type spells)
         /// </summary>
         /// <param name="eff"></param>
-        private void RefreshActiveEffects(EffectItem eff)
+        private void RefreshActiveEffects(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
         {
             // Get all the actors affected by this effect
             var myFID = eff.Effect.FormId;
@@ -87,7 +111,7 @@ namespace SpellChargingPlugin.Core
                 {
                     DebugHelper.Print($"- Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
 
-                    victim.Magnitude = eff.Magnitude;
+                    victim.Magnitude = basePower.Magnitude * modifier;
                     Memory.InvokeCdecl(
                         Util.addr_CalculateDurationAndMagnitude,    //void __fastcall sub(
                         victim.Effect,                              //  ActiveEffect * a1, 
@@ -106,17 +130,8 @@ namespace SpellChargingPlugin.Core
         /// Adjust Magnitude and/or Duration according to Growth and Multiplier
         /// </summary>
         /// <param name="eff"></param>
-        private void RefreshPower(EffectItem eff)
+        private void RefreshPower(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
         {
-            var basePower = SpellHelper.GetBasePower(eff);
-            var modifier = _growth * _multiplier;
-
-            if (modifier > 0.0f && Settings.Instance.HalfPowerWhenMagAndDur && !_isConcentration)
-            {
-                bool hasMag = eff.Magnitude > 0f;
-                bool hasDur = eff.Duration > 0;
-                modifier *= hasMag && hasDur ? 0.5f : 1f;
-            }
             // Boosting concentration duration AND magnitude would be a little too broken, even halved
             if (!_isConcentration)
                 eff.Duration = (int)(basePower.Duration * (1.0f + modifier));

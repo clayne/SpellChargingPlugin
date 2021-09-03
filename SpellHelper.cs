@@ -33,11 +33,13 @@ namespace SpellChargingPlugin
         {
             public readonly float Magnitude;
             public readonly int Duration;
+            public readonly float Area;
 
-            public EffectPower(float magnitude, int duration)
+            public EffectPower(float magnitude, int duration, float area)
             {
                 Magnitude = magnitude;
                 Duration = duration;
+                Area = area;
             }
         }
 
@@ -51,7 +53,12 @@ namespace SpellChargingPlugin
         public static EffectPower GetBasePower(EffectItem effectItem)
         {
             if (!_baseEffectPowers.ContainsKey(effectItem))
-                _baseEffectPowers.Add(effectItem, new EffectPower(effectItem.Magnitude, effectItem.Duration));
+                _baseEffectPowers.Add(
+                    effectItem, 
+                    new EffectPower(
+                        effectItem.Magnitude, 
+                        effectItem.Duration,
+                        effectItem.Area));
             return _baseEffectPowers[effectItem];
         }
 
