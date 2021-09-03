@@ -20,11 +20,10 @@ namespace SpellChargingPlugin
 
         private NetScriptFramework.Tools.Timer _gameActiveTimer = null;
         private long? _lastOnFrameTime = null;
-        private float _elapsedSecondsSinceUpdate = 0f;
-
         private float _fUpdatesPerSecond = 1.0f / Settings.Instance.UpdatesPerSecond;
 
-        private Core.ChargingActor _chargingPlayer;
+        private Core.ChargingActor _chargingPlayer = new Core.ChargingActor();
+        private Util.SimpleTimer _simpleTimer = new Util.SimpleTimer();
 
         /// <summary>
         /// NetFramework entry
@@ -33,22 +32,21 @@ namespace SpellChargingPlugin
         /// <returns></returns>
         protected override bool Initialize(bool loadedAny)
         {
-            Init();
-            Register();
+            SetLogFile();
+            HookAndRegister();
             return true;
         }
 
-        private void Init()
+        private void SetLogFile()
         {
             var logFile = new NetScriptFramework.Tools.LogFile("SpellChargingPlugin", NetScriptFramework.Tools.LogFileFlags.AutoFlush | NetScriptFramework.Tools.LogFileFlags.IncludeTimestampInLine);
             DebugHelper.SetLogFile(logFile);
-            _chargingPlayer = new Core.ChargingActor();
         }
 
         /// <summary>
         /// Register for OnFrame to avoid any lag and make sure things are taken care of asap
         /// </summary>
-        private void Register()
+        private void HookAndRegister()
         {
             _gameActiveTimer = new NetScriptFramework.Tools.Timer();
             _gameActiveTimer.Start();
@@ -111,11 +109,10 @@ namespace SpellChargingPlugin
             if (main?.IsGamePaused != false)
                 return;
 
-            _elapsedSecondsSinceUpdate += elapsedSeconds;
-            if (_elapsedSecondsSinceUpdate < _fUpdatesPerSecond)
-                return;
-            _chargingPlayer.Update(_elapsedSecondsSinceUpdate);
-            _elapsedSecondsSinceUpdate = 0f;
+            _simpleTimer.Update(elapsedSeconds);
+
+            if(_simpleTimer.HasElapsed(_fUpdatesPerSecond, out var exact))
+                _chargingPlayer.Update(exact);
         }
     }
 }

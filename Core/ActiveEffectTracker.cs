@@ -5,6 +5,10 @@ using System.Linq;
 
 namespace SpellChargingPlugin.Core
 {
+    /// <summary>
+    /// Singleton that is supposed to track actors actors with ActiveEffects that have been inflicted by another (or the same) character.
+    /// Needs to be cleared regularly to avoid wasting resources on effects that have expired.
+    /// </summary>
     public sealed class ActiveEffectTracker
     {
         private static ActiveEffectTracker _instance;

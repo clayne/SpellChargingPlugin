@@ -34,10 +34,13 @@ namespace SpellChargingPlugin.Core
                 if (id == TESCameraStates.FirstPerson || id == TESCameraStates.ThirdPerson1 || id == TESCameraStates.ThirdPerson2)
                 {
                     DebugHelper.Print($"[ChargingActor] Camera switch to {CameraState}. Expect funny visuals!");
-                    LeftSpell?.UpdateParticleNode();
-                    RightSpell?.UpdateParticleNode();
+                    LeftSpell?.RefreshParticleNode();
+                    RightSpell?.RefreshParticleNode();
                 }
             });
+
+            // Having something like this would be nice
+            //Events.OnEquipWeaponOrSpell.Register(arg => { });
         }
 
         public void Update(float elapsedSeconds)

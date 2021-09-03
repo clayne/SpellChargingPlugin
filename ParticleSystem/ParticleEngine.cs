@@ -15,13 +15,9 @@ namespace SpellChargingPlugin.ParticleSystem
     {
         public static uint GlobalParticleCount { get; set; }
 
-        private ParallelOptions _parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = 2 };
-
-        private ConcurrentBag<Particle> _activeParticles = new ConcurrentBag<Particle>();
+        private HashSet<Particle> _activeParticles = new HashSet<Particle>();
         private uint _maxParticles;
-
-        private readonly float _fMaxUpdateTime = 1f / Settings.Instance.UpdatesPerSecond;
-        private Util.SimpleAverager _averageUtil = new Util.SimpleAverager(Settings.Instance.UpdatesPerSecond);
+        private Util.SimpleTimer _sTimer = new Util.SimpleTimer();
 
         private ParticleEngine() { }
         public static ParticleEngine Create(uint maxParticles)
@@ -39,8 +35,7 @@ namespace SpellChargingPlugin.ParticleSystem
             {
                 item.Dispose();
             }
-            while (!_activeParticles.IsEmpty)
-                _activeParticles.TryTake(out var _);
+            _activeParticles.Clear();
             if (GlobalParticleCount != 0)
                 DebugHelper.Print($"[ParticleEngine] Not all particles reset?");
         }
@@ -51,34 +46,27 @@ namespace SpellChargingPlugin.ParticleSystem
                 return;
             _activeParticles.Add(newParticle);
             ++GlobalParticleCount;
-            if (GlobalParticleCount % 100 == 0)
+            if (GlobalParticleCount % 50 == 0)
                 DebugHelper.Print($"[ParticleEngine] Total particles: {GlobalParticleCount}");
         }
 
         public void Update(float elapsedSeconds)
         {
-            if (!_activeParticles.Any())
+            if (_activeParticles.Count == 0)
                 return;
 
-            UpdateSingleThreaded(elapsedSeconds);
+            _sTimer.Update(elapsedSeconds);
 
-            if (_activeParticles.Any(p => p.Delete))
-                DeleteParticles();
-        }
+            foreach (var item in _activeParticles)
+            {
+                item.Update(elapsedSeconds);
+                if (item.Delete)
+                    item.Dispose();
+            }
 
-        private void UpdateSingleThreaded(float elapsedSeconds)
-        {
-            foreach (var p in _activeParticles)
-                p.Update(elapsedSeconds);
-        }
-
-        // TODO: check performance
-        private void DeleteParticles()
-        {
-            var toRemove = _activeParticles.Where(p => p.Delete);
-            foreach (var p in toRemove)
-                p.Dispose();
-            _activeParticles = new ConcurrentBag<Particle>(_activeParticles.Where(p => !p.Delete));
+            // This really doesn't need to happen all that often, I think
+            if(_sTimer.HasElapsed(0.33f, out _))
+                _activeParticles.RemoveWhere(e => e.Delete);
         }
     }
 }

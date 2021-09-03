@@ -24,12 +24,12 @@ namespace SpellChargingPlugin.Core
 
         private readonly SpellPowerManager _spellPowerManager;
         private NiNode _particleOrbitCenter;
-        private float _timeSpentCharging;
         private float _chargeLevel = 0f;
         private bool _isConcentration;
 
         private ParticleEngine _particleEngine;
         private List<Particle> _spellParticles;
+        private Util.SimpleTimer _chargingTimer = new Util.SimpleTimer();
 
         private float _fChargesPerSecond = 1.0f / Settings.Instance.ChargesPerSecond;
 
@@ -75,7 +75,7 @@ namespace SpellChargingPlugin.Core
         /// <summary>
         /// This will only affect newly spawned particles and most likely causes visual glitches
         /// </summary>
-        public void UpdateParticleNode()
+        public void RefreshParticleNode()
         {
             _particleOrbitCenter = GetNode(Slot) as NiNode;
         }
@@ -107,22 +107,20 @@ namespace SpellChargingPlugin.Core
         }
 
         /// <summary>
-        /// Should only be called by state
+        /// Should only be called by Charging State
         /// </summary>
         /// <param name="elapsedSeconds"></param>
         internal void UpdateCharge(float elapsedSeconds)
         {
-            _timeSpentCharging += elapsedSeconds;
-            if (_timeSpentCharging < _fChargesPerSecond)
+            _chargingTimer.Update(elapsedSeconds);
+            if (!_chargingTimer.HasElapsed(_fChargesPerSecond, out _))
                 return;
-            _timeSpentCharging = 0f;
 
-            
             if (!TryDrainMagicka(Settings.Instance.MagickaPerCharge * (_isConcentration ? 0.1f : 1f)))
                 return;
 
             _chargeLevel += 1.0001f;
-            AddPowerForCharge(_chargeLevel);
+            _spellPowerManager.Multiplier = _chargeLevel;
             if ((int)_chargeLevel % Settings.Instance.ChargesPerParticle == 0)
                 AddParticleForCharge(_chargeLevel);
         }
@@ -175,12 +173,6 @@ namespace SpellChargingPlugin.Core
                 _particleEngine.Add(newParticle);
             }
         }
-
-        private void AddPowerForCharge(float chargeLevel)
-        {
-            _spellPowerManager.Multiplier = chargeLevel;
-        }
-
         private bool TryDrainMagicka(float magCost)
         {
             if (Holder.Actor.GetActorValue(ActorValueIndices.Magicka) < magCost)

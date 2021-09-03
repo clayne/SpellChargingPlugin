@@ -31,7 +31,7 @@ namespace SpellChargingPlugin.Core
         public static SpellPowerManager CreateFor(SpellItem spell)
         {
             if (spell == null)
-                throw new ArgumentException("Can't assign NULL spell!");
+                throw new ArgumentException("[SpellPowerManager] Can't assign NULL spell!");
 
             var ret = new SpellPowerManager()
             {
@@ -61,6 +61,7 @@ namespace SpellChargingPlugin.Core
                     modifier *= hasMag && hasDur ? 0.5f : 1f;
                 }
 
+                DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Eff: {eff.Effect.Name}");
                 RefreshPower(eff, basePower, modifier);
                 RefreshArea(eff, basePower, modifier);
                 RefreshMisc(eff);
@@ -90,7 +91,7 @@ namespace SpellChargingPlugin.Core
         /// toys
         /// </summary>
         /// <param name="eff"></param>
-        private static void RefreshMisc(EffectItem eff)
+        private void RefreshMisc(EffectItem eff)
         {
             // What about projectile/visual effect scaling?
             IntPtr fSpeedPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x08;
@@ -100,13 +101,21 @@ namespace SpellChargingPlugin.Core
             // See what happens here
             try
             {
+                DebugHelper.Print($"[SpellPowerManager] fSpeedPtr (before): {NativeCrashLog.GetValueInfo(fSpeedPtr)}");
+                DebugHelper.Print($"[SpellPowerManager] fRangePtr (before): {NativeCrashLog.GetValueInfo(fRangePtr)}");
+                DebugHelper.Print($"[SpellPowerManager] fCollisionRadiusPtr (before): {NativeCrashLog.GetValueInfo(fCollisionRadiusPtr)}");
+
                 Memory.WriteFloat(fSpeedPtr, 7777);
                 Memory.WriteFloat(fRangePtr, 7);
                 Memory.WriteFloat(fCollisionRadiusPtr, 7777);
+
+                DebugHelper.Print($"[SpellPowerManager] fSpeedPtr (after): {NativeCrashLog.GetValueInfo(fSpeedPtr)}");
+                DebugHelper.Print($"[SpellPowerManager] fRangePtr (after): {NativeCrashLog.GetValueInfo(fRangePtr)}");
+                DebugHelper.Print($"[SpellPowerManager] fCollisionRadiusPtr (after): {NativeCrashLog.GetValueInfo(fCollisionRadiusPtr)}");
             }
             catch (Exception ex)
             {
-                DebugHelper.Print($"Failed to write to projectile data! {ex.Message}");
+                DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Failed to write to projectile data! {ex.Message}");
             }
 
             try
@@ -164,13 +173,13 @@ namespace SpellChargingPlugin.Core
                 .ToArray();
             if (myActiveEffects.Length == 0)
                 return;
-            DebugHelper.Print($"ActiveEffect : {eff.Effect.Name} affects {myActiveEffects.Length} targets");
+            DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Eff : {eff.Effect.Name} affects {myActiveEffects.Length} targets");
             // Set Magnitude and call CalculateDurationAndMagnitude for each affected actor
             foreach (var victim in myActiveEffects)
             {
                 if (MemoryObject.FromAddress<ActiveEffect>(victim.Effect) is ActiveEffect)
                 {
-                    DebugHelper.Print($"- Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
+                    DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}:{eff.Effect.Name}] Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
 
                     victim.Magnitude = basePower.Magnitude * modifier;
                     Memory.InvokeCdecl(
@@ -181,7 +190,7 @@ namespace SpellChargingPlugin.Core
                 }
                 else
                 {
-                    DebugHelper.Print($"- Effect {victim.Effect.ToHexString()} was invalid!");
+                    DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}:{eff.Effect.Name}] Invalid ActiveEffect pointer {victim.Effect.ToHexString()}!");
                     victim.Invalid = true;
                 }
             }

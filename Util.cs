@@ -42,21 +42,29 @@ namespace SpellChargingPlugin
             return toLoad;
         }
 
-        public class SimpleAverager
+        public class SimpleTimer
         {
-            private float[] _history;
-            private int _histIndex = 0;
-            public SimpleAverager(uint history)
+            private float _elapsedSeconds;
+
+            public void Update(float elapsedSeconds)
             {
-                _history = new float[history];
+                _elapsedSeconds = elapsedSeconds;
             }
 
-            public float GetAverage(float current)
+            /// <summary>
+            /// Check if a certain amount of time has passed since this method has been called and reset the timer
+            /// </summary>
+            /// <param name="seconds"></param>
+            /// <param name="elapsed">The current value of the internal timer</param>
+            /// <returns></returns>
+            public bool HasElapsed(float seconds, out float elapsed, bool reset = true)
             {
-                _history[_histIndex++] = current;
-                if (_histIndex >= _history.Length)
-                    _histIndex = 0;
-                return _history.Average();
+                elapsed = _elapsedSeconds;
+                if (_elapsedSeconds < seconds)
+                    return false;
+                if(reset) 
+                    _elapsedSeconds = 0.0f;
+                return true;
             }
         }
     }
