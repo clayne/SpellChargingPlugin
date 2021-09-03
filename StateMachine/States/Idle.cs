@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SpellChargingPlugin.States
+namespace SpellChargingPlugin.StateMachine.States
 {
     public class Idle : State<ChargingSpell>
     {

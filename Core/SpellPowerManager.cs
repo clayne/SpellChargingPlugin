@@ -51,72 +51,76 @@ namespace SpellChargingPlugin.Core
         {
             foreach (var eff in _managedSpell.Effects)
             {
-                var basePower = SpellHelper.GetBasePower(eff);
-                var modifier = _growth * _multiplier;
+                RefreshPower(eff);
 
-                if (modifier > 0.0f && Settings.Instance.HalfPowerWhenMagAndDur && !_isConcentration)
+                if (!_isConcentration)
+                    continue;
+                // PeakValueMod spells (like Oakflesh) don't behave properly when updated in this manner
+                if (eff.Effect.Archetype == Archetypes.PeakValueMod)
+                    continue;
+
+                RefreshActiveEffects(eff);
+            }
+        }
+
+        /// <summary>
+        /// Refresh ActiveEffects on targets affected by this effect (should only be needed with Concentration type spells)
+        /// </summary>
+        /// <param name="eff"></param>
+        private void RefreshActiveEffects(EffectItem eff)
+        {
+            // Get all the actors affected by this effect
+            var myFID = eff.Effect.FormId;
+            var myActiveEffects = ActiveEffectTracker.Instance
+                .Tracked()
+                .ForBaseEffect(myFID)
+                .FromOffender(PlayerCharacter.Instance.Cast<Character>())
+                .Where(e => e.Invalid == false)
+                .ToArray();
+            if (myActiveEffects.Length == 0)
+                return;
+            DebugHelper.Print($"ActiveEffect : {eff.Effect.Name} affects {myActiveEffects.Length} targets");
+            // Set Magnitude and call CalculateDurationAndMagnitude for each affected actor
+            foreach (var victim in myActiveEffects)
+            {
+                if (MemoryObject.FromAddress<ActiveEffect>(victim.Effect) is ActiveEffect)
                 {
-                    bool hasMag = eff.Magnitude > 0f;
-                    bool hasDur = eff.Duration > 0;
-                    modifier *= hasMag && hasDur ? 0.5f : 1f;
+                    DebugHelper.Print($"- Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
+
+                    victim.Magnitude = eff.Magnitude;
+                    Memory.InvokeCdecl(
+                        Util.addr_CalculateDurationAndMagnitude,    //void __fastcall sub(
+                        victim.Effect,                              //  ActiveEffect * a1, 
+                        victim.Offender,                            //  Character * a2, 
+                        victim.Me);                                 //  MagicTarget * a3);
                 }
-                if (!_isConcentration) eff.Duration = (int)(basePower.Duration * (1.0f + modifier));
-                eff.Magnitude = basePower.Magnitude * (1.0f + modifier);
-
-                if (!SpellCharging._trackedEffects.Any())
-                    return;
-
-
-                IntPtr aEff = IntPtr.Zero;
-                HashSet<IntPtr> invalids = new HashSet<IntPtr>();
-                lock (SpellCharging._trackedEffects)
+                else
                 {
-                    foreach (var kv in SpellCharging._trackedEffects)
-                    {
-                        try
-                        {
-                            ActiveEffect ef = MemoryObject.FromAddress<ActiveEffect>(kv.Key);
-                            if (!(ef is ActiveEffect))
-                                invalids.Add(kv.Key);
-                            else if(ef.EffectData.Effect.FormId == eff.Effect.FormId)
-                            {
-                                aEff = kv.Key;
-                                break;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            DebugHelper.Print(ex.Message);
-                            invalids.Add(kv.Key);
-                        }
-                    }
-                    foreach (var item in invalids)
-                    {
-                        SpellCharging._trackedEffects.Remove(item);
-                    }
-                }
-                if (aEff == IntPtr.Zero)
-                    return;
-
-                IntPtr addr_CalculateDurationAndMagnitude = new IntPtr(0x14053DF40).FromBase();
-
-                if (SpellCharging._trackedEffects.TryGetValue(aEff, out var victims))
-                {
-                    victims.Magnitude = eff.Magnitude;
-                    for (int i = 0; i < victims.Victims.Count; i++)
-                    {
-                        var tracked = victims.Victims[i];
-                        DebugHelper.Print($"ActiveEffect : {eff.Effect.Name}");
-                        DebugHelper.Print("- - Invoke addr_CalculateDurationAndMagnitude for update!");
-                        Memory.InvokeCdecl(
-                            addr_CalculateDurationAndMagnitude,
-                            aEff,
-                            PlayerCharacter.Instance.Cast<Character>(),
-                            tracked);
-                    }
+                    DebugHelper.Print($"- Effect {victim.Effect.ToHexString()} was invalid!");
+                    victim.Invalid = true;
                 }
             }
+        }
 
+        /// <summary>
+        /// Adjust Magnitude and/or Duration according to Growth and Multiplier
+        /// </summary>
+        /// <param name="eff"></param>
+        private void RefreshPower(EffectItem eff)
+        {
+            var basePower = SpellHelper.GetBasePower(eff);
+            var modifier = _growth * _multiplier;
+
+            if (modifier > 0.0f && Settings.Instance.HalfPowerWhenMagAndDur && !_isConcentration)
+            {
+                bool hasMag = eff.Magnitude > 0f;
+                bool hasDur = eff.Duration > 0;
+                modifier *= hasMag && hasDur ? 0.5f : 1f;
+            }
+            // Boosting concentration duration AND magnitude would be a little too broken, even halved
+            if (!_isConcentration)
+                eff.Duration = (int)(basePower.Duration * (1.0f + modifier));
+            eff.Magnitude = basePower.Magnitude * (1.0f + modifier);
         }
     }
 }

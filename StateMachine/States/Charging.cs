@@ -7,10 +7,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SpellChargingPlugin.States
+namespace SpellChargingPlugin.StateMachine.States
 {
     public class Charging : State<ChargingSpell>
     {
+        private static int _chargingInstances = 0;
         public Charging(ChargingSpell context) : base(context)
         {
         }
@@ -40,6 +41,16 @@ namespace SpellChargingPlugin.States
                     TransitionTo(() => new Cancel(_context));
                     break;
             }
+        }
+
+        protected override void OnEnterState()
+        {
+            ++_chargingInstances;
+        }
+        protected override void OnExitState()
+        {
+            if (--_chargingInstances == 0)
+                ActiveEffectTracker.Instance.Clear();
         }
     }
 }

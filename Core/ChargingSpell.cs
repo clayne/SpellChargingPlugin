@@ -20,7 +20,6 @@ namespace SpellChargingPlugin.Core
         public SpellItem Spell { get; set; }
         public EquippedSpellSlots Slot { get; set; }
         public State<ChargingSpell> CurrentState { get; set; }
-        public bool IsResetting { get; set; }
         public bool IsTwoHanded => Spell.EquipSlot?.FormId == Settings.Instance.EquipBothFormID;
 
         private readonly SpellPowerManager _spellPowerManager;
@@ -70,7 +69,7 @@ namespace SpellChargingPlugin.Core
             _chargeLevel = 0.0f;
 
             DebugHelper.Print($"[ChargingSpell] . State init");
-            CurrentState = new States.Idle(this);
+            CurrentState = new StateMachine.States.Idle(this);
         }
 
         /// <summary>
@@ -169,9 +168,9 @@ namespace SpellChargingPlugin.Core
                 newParticle.AddBehavior(new OrbitBehavior(newParticle, new Vector3D(0, 0, 0), new Vector3D(a1, a2, a3), speedFactor));
                 newParticle.AddBehavior(new AimForwardBehavior(newParticle));
                 newParticle.AddBehavior(new BreatheBehavior(newParticle, 0.1f, 1f, 5f)
-                { Active = () => CurrentState is States.Charging });
+                { Active = () => CurrentState is StateMachine.States.Charging });
                 newParticle.AddBehavior(new FadeBehavior(newParticle, 0.5f)
-                { Active = () => !(CurrentState is States.Charging) });
+                { Active = () => !(CurrentState is StateMachine.States.Charging) });
 
                 _particleEngine.Add(newParticle);
             }
@@ -193,7 +192,6 @@ namespace SpellChargingPlugin.Core
         // TODO: reset & clean with a little more grace
         public void Reset()
         {
-            IsResetting = true;
             _chargeLevel = 0.0f;
             _spellPowerManager.Multiplier = _chargeLevel;
             _particleEngine.Clear();

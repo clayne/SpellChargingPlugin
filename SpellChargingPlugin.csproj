@@ -27,7 +27,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\..\..\..\..\MO2 - Skyrim SE\mods\DEV\NetScriptFramework\Plugins\</OutputPath>
+    <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -46,15 +46,11 @@
     <Reference Include="PresentationCore" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Core\ActiveEffectTracker.cs" />
     <Compile Include="Core\ChargingActor.cs" />
     <Compile Include="Core\ChargingSpell.cs" />
     <Compile Include="Core\SpellPowerManager.cs" />
@@ -73,10 +69,10 @@
     <Compile Include="SpellVictimContainer.cs" />
     <Compile Include="StateMachine\IStateHolder.cs" />
     <Compile Include="StateMachine\State.cs" />
-    <Compile Include="States\Cancel.cs" />
-    <Compile Include="States\Charging.cs" />
-    <Compile Include="States\Idle.cs" />
-    <Compile Include="States\Release.cs" />
+    <Compile Include="StateMachine\States\Cancel.cs" />
+    <Compile Include="StateMachine\States\Charging.cs" />
+    <Compile Include="StateMachine\States\Idle.cs" />
+    <Compile Include="StateMachine\States\Release.cs" />
     <Compile Include="Util.cs" />
   </ItemGroup>
   <ItemGroup>

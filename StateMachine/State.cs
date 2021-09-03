@@ -18,6 +18,7 @@ namespace SpellChargingPlugin.StateMachine
 
         protected void TransitionTo<T>(Func<T> creator) where T : State<TContext>
         {
+            OnExitState();
             State<TContext> newState = creator();
             newState._timeInState = 0f;
             newState.OnEnterState();
@@ -26,6 +27,7 @@ namespace SpellChargingPlugin.StateMachine
 
             _context.CurrentState = newState;
         }
+
         public virtual void Update(float elapsedSeconds)
         {
             _timeInState += elapsedSeconds;
@@ -34,5 +36,6 @@ namespace SpellChargingPlugin.StateMachine
 
         protected abstract void OnUpdate(float elapsedSeconds);
         protected virtual void OnEnterState() { }
+        protected virtual void OnExitState() { }
     }
 }

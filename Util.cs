@@ -9,6 +9,10 @@ namespace SpellChargingPlugin
 {
     public static class Util
     {
+        // ActiveEffect::CalculateDurationAndMagnitude_14053DF40
+        // void __fastcall sub(ActiveEffect* a1, Character* a2, MagicTarget* a3)
+        public static IntPtr addr_CalculateDurationAndMagnitude = new IntPtr(0x14053DF40).FromBase();
+
         private static Dictionary<string, NiAVObject> _nifCache = new Dictionary<string, NiAVObject>();
         public static NiAVObject LoadNif(string nifPath)
         {

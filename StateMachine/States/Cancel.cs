@@ -6,16 +6,21 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SpellChargingPlugin.States
+namespace SpellChargingPlugin.StateMachine.States
 {
-    public class Release : State<ChargingSpell>
+    public class Cancel : State<ChargingSpell>
     {
-        public Release(ChargingSpell context) : base(context)
+        public Cancel(ChargingSpell context) : base(context)
         {
         }
 
+        /// <summary>
+        /// Reset, clean up and transition to idle state
+        /// </summary>
+        /// <param name="elapsedSeconds"></param>
         protected override void OnUpdate(float elapsedSeconds)
         {
+            _context.Reset();
             TransitionTo(() => new Idle(_context));
         }
     }
