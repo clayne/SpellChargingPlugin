@@ -63,6 +63,7 @@ namespace SpellChargingPlugin.Core
 
                 RefreshPower(eff, basePower, modifier);
                 RefreshArea(eff, basePower, modifier);
+                RefreshMisc(eff);
 
                 if (!_isConcentration)
                     continue;
@@ -83,8 +84,68 @@ namespace SpellChargingPlugin.Core
         {
             // This easy? Needs testing. 
             eff.Area = (int)(basePower.Area * modifier);
+        }
+
+        /// <summary>
+        /// toys
+        /// </summary>
+        /// <param name="eff"></param>
+        private static void RefreshMisc(EffectItem eff)
+        {
             // What about projectile/visual effect scaling?
-            //ScaleVisual(_managedSpell);
+            IntPtr fSpeedPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x08;
+            IntPtr fRangePtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x0C;
+            IntPtr fCollisionRadiusPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x6C;
+
+            // See what happens here
+            try
+            {
+                Memory.WriteFloat(fSpeedPtr, 7777);
+                Memory.WriteFloat(fRangePtr, 7);
+                Memory.WriteFloat(fCollisionRadiusPtr, 7777);
+            }
+            catch (Exception ex)
+            {
+                DebugHelper.Print($"Failed to write to projectile data! {ex.Message}");
+            }
+
+            try
+            {
+                // What are these values??
+                IntPtr unk00 = eff.Effect.Explosion.ExplosionData.Address + 0x00;
+                IntPtr unk08 = eff.Effect.Explosion.ExplosionData.Address + 0x08;
+                IntPtr unk10 = eff.Effect.Explosion.ExplosionData.Address + 0x10;
+                IntPtr unk18 = eff.Effect.Explosion.ExplosionData.Address + 0x18;
+                IntPtr unk20 = eff.Effect.Explosion.ExplosionData.Address + 0x20;
+                IntPtr unk28 = eff.Effect.Explosion.ExplosionData.Address + 0x28;
+                IntPtr unk30 = eff.Effect.Explosion.ExplosionData.Address + 0x30;
+                IntPtr unk34 = eff.Effect.Explosion.ExplosionData.Address + 0x34;
+                IntPtr unk38 = eff.Effect.Explosion.ExplosionData.Address + 0x38;
+                IntPtr unk3C = eff.Effect.Explosion.ExplosionData.Address + 0x3C;
+                IntPtr unk40 = eff.Effect.Explosion.ExplosionData.Address + 0x40;
+                IntPtr unk44 = eff.Effect.Explosion.ExplosionData.Address + 0x44;
+                IntPtr unk48 = eff.Effect.Explosion.ExplosionData.Address + 0x48;
+                IntPtr unk4C = eff.Effect.Explosion.ExplosionData.Address + 0x4C;
+
+                DebugHelper.Print($"__unk00 as float : {Memory.ReadFloat(unk00)} ({NativeCrashLog.GetValueInfo(unk00)})");
+                DebugHelper.Print($"__unk08 as float : {Memory.ReadFloat(unk08)} ({NativeCrashLog.GetValueInfo(unk08)})");
+                DebugHelper.Print($"__unk10 as float : {Memory.ReadFloat(unk10)} ({NativeCrashLog.GetValueInfo(unk10)})");
+                DebugHelper.Print($"__unk18 as float : {Memory.ReadFloat(unk18)} ({NativeCrashLog.GetValueInfo(unk18)})");
+                DebugHelper.Print($"__unk20 as float : {Memory.ReadFloat(unk20)} ({NativeCrashLog.GetValueInfo(unk20)})");
+                DebugHelper.Print($"__unk28 as float : {Memory.ReadFloat(unk28)} ({NativeCrashLog.GetValueInfo(unk28)})");
+                DebugHelper.Print($"__unk30 as float : {Memory.ReadFloat(unk30)} ({NativeCrashLog.GetValueInfo(unk30)})");
+                DebugHelper.Print($"__unk34 as float : {Memory.ReadFloat(unk34)} ({NativeCrashLog.GetValueInfo(unk34)})");
+                DebugHelper.Print($"__unk38 as float : {Memory.ReadFloat(unk38)} ({NativeCrashLog.GetValueInfo(unk38)})");
+                DebugHelper.Print($"__unk3C as float : {Memory.ReadFloat(unk3C)} ({NativeCrashLog.GetValueInfo(unk3C)})");
+                DebugHelper.Print($"__unk40 as float : {Memory.ReadFloat(unk40)} ({NativeCrashLog.GetValueInfo(unk40)})");
+                DebugHelper.Print($"__unk44 as float : {Memory.ReadFloat(unk44)} ({NativeCrashLog.GetValueInfo(unk44)})");
+                DebugHelper.Print($"__unk48 as float : {Memory.ReadFloat(unk48)} ({NativeCrashLog.GetValueInfo(unk48)})");
+                DebugHelper.Print($"__unk4C as float : {Memory.ReadFloat(unk4C)} ({NativeCrashLog.GetValueInfo(unk4C)})");
+            }
+            catch (Exception ex)
+            {
+                DebugHelper.Print($"Failed to read to explosion data! {ex.Message}");
+            }
         }
 
         /// <summary>
