@@ -24,13 +24,13 @@ namespace SpellChargingPlugin.StateMachine.States
             var handState = SpellHelper.GetSpellAndState(_context.Holder.Actor, _context.Slot);
             if (handState == null)
             {
-                if (_needsReset) { _context.Reset(); _needsReset = false; }
+                if (_needsReset) { _context.ResetAndClean(); _needsReset = false; }
                 return;
             }
             if(_needsReset && _timeInState > 5f)
             {
                 DebugHelper.Print($"[State.Idle] state auto-cleanup {_context.Spell.Name}");
-                _context.Reset();
+                _context.ResetAndClean();
                 _needsReset = false;
             }
             switch (handState.Value.State)
@@ -42,7 +42,7 @@ namespace SpellChargingPlugin.StateMachine.States
                     
                     if (_needsReset)
                     {
-                        _context.Reset();
+                        _context.ResetAndClean();
                         _needsReset = false;
                     }
                     TransitionTo(() => new Charging(_context));

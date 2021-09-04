@@ -1,4 +1,6 @@
-﻿using NetScriptFramework.SkyrimSE;
+﻿using NetScriptFramework;
+using NetScriptFramework.SkyrimSE;
+using NetScriptFramework.Tools;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +16,7 @@ namespace SpellChargingPlugin
         public static IntPtr addr_CalculateDurationAndMagnitude = new IntPtr(0x14053DF40).FromBase();
 
         private static Dictionary<string, NiAVObject> _nifCache = new Dictionary<string, NiAVObject>();
+
         public static NiAVObject LoadNif(string nifPath)
         {
             if (!_nifCache.TryGetValue(nifPath, out NiAVObject toLoad))
@@ -48,7 +51,7 @@ namespace SpellChargingPlugin
 
             public void Update(float elapsedSeconds)
             {
-                _elapsedSeconds = elapsedSeconds;
+                _elapsedSeconds += elapsedSeconds;
             }
 
             /// <summary>
@@ -65,6 +68,37 @@ namespace SpellChargingPlugin
                 if(reset) 
                     _elapsedSeconds = 0.0f;
                 return true;
+            }
+        }
+
+        public static class Visuals
+        {
+            public static void AttachArtObject(uint formID, Character target, float duration = -1)
+            {
+                var art = TESForm.LookupFormById(formID) as BGSArtObject;
+                if (art == null)
+                    return;
+                Memory.InvokeCdecl(
+                    new IntPtr(0x14030F9A0).FromBase(), // int32 __fastcall sub(Character* a1, BGSArtObject* a2, int64 a3, Character* a4, int64 a5, uint8 a6, int64 a7, uint8 a8)
+                    target.Cast<TESObjectREFR>(),       // target
+                    art.Address,                        // art object
+                    duration,                           // duration
+                    target.Cast<TESObjectREFR>(),       // no clue
+                    0,                                  // some bool, artobject not visible (near the player, at least) when set to 1
+                    0,                                  // no clue
+                    IntPtr.Zero,                        // no clue
+                    IntPtr.Zero);                       // no clue
+            }
+            public static void DetachArtObject(uint formID, Character target)
+            {
+                var art = TESForm.LookupFormById(formID) as BGSArtObject;
+                if (art == null)
+                    return;
+                var func = new IntPtr(0x1406DDA30).FromBase();
+                Memory.InvokeCdecl(func,                                    // int32 __fastcall sub(void* a1, Character*a2, BGSArtObject* a3)
+                    Memory.ReadPointer(new IntPtr(0x141EBEAD0).FromBase()), // gProcessLists (static pointer?)
+                    target.Cast<TESObjectREFR>(),                           // target
+                    art.Address);                                           // art object
             }
         }
     }

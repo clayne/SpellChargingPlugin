@@ -15,20 +15,20 @@ namespace SpellChargingPlugin.Core
         /// <summary>
         /// Percentage gain of power ("power per charge")
         /// </summary>
-        public float Growth { get => _growth; set { _growth = value; Update(0.0f); } }
+        public float Growth { get => _growth; set { _growth = value; Refresh(); } }
 
         /// <summary>
         /// Growth multiplier ("current charges")
         /// </summary>
-        public float Multiplier { get => _multiplier; set { _multiplier = value; Update(0.0f); } }
+        public float Multiplier { get => _multiplier; set { _multiplier = value; Refresh(); } }
 
         private float _growth;
         private float _multiplier;
-        private SpellItem _managedSpell;
+        private ChargingSpell _managedSpell;
         private bool _isConcentration;
 
         private SpellPowerManager() { }
-        public static SpellPowerManager CreateFor(SpellItem spell)
+        public static SpellPowerManager Create(ChargingSpell spell)
         {
             if (spell == null)
                 throw new ArgumentException("[SpellPowerManager] Can't assign NULL spell!");
@@ -38,123 +38,95 @@ namespace SpellChargingPlugin.Core
                 _managedSpell = spell,
                 _growth = 0.0f,
                 _multiplier = 0.0f,
-                _isConcentration = spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration,
+                _isConcentration = spell.Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration,
             };
             return ret;
         }
 
         /// <summary>
-        /// Refresh Spell magnitudes. Normally only necessary after updating Growth or Power, but those Properties already call this.
+        /// Refresh Spell magnitudes and other associated attributes and effects
         /// </summary>
-        /// <param name="elapsedSeconds"></param>
-        private void Update(float elapsedSeconds)
+        private void Refresh()
         {
-            foreach (var eff in _managedSpell.Effects)
+            foreach (var eff in _managedSpell.Spell.Effects)
             {
                 var basePower = SpellHelper.GetBasePower(eff);
-                var modifier = _growth * _multiplier;
+                float baseModifier = 1f + _growth * _multiplier; // for power, linear gains
+                float adjustedModifier = 1f + (float)Math.Log10(baseModifier) * 0.5f; // for area and speed, diminishing gains, less steep
 
-                if (modifier > 0.0f && Settings.Instance.HalfPowerWhenMagAndDur && !_isConcentration)
-                {
-                    bool hasMag = eff.Magnitude > 0f;
-                    bool hasDur = eff.Duration > 0;
-                    modifier *= hasMag && hasDur ? 0.5f : 1f;
-                }
+                //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Eff: {eff.Effect.Name} Mod: {modifier}");
+                BoostPower(eff, basePower, baseModifier);
+                BoostArea(eff, basePower, adjustedModifier);
+                BoostSpeed(eff, basePower, adjustedModifier);
 
-                DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Eff: {eff.Effect.Name}");
-                RefreshPower(eff, basePower, modifier);
-                RefreshArea(eff, basePower, modifier);
-                RefreshMisc(eff);
-
-                if (!_isConcentration)
-                    continue;
-                // PeakValueMod spells (like Oakflesh) don't behave properly when updated in this manner
-                if (eff.Effect.Archetype == Archetypes.PeakValueMod)
-                    continue;
-
-                RefreshActiveEffects(eff, basePower, modifier);
+                if (_isConcentration)
+                    RefreshActiveEffects(eff, basePower, baseModifier);
             }
         }
-
 
         /// <summary>
         /// Experimental buff to area (may not work)
         /// </summary>
         /// <param name="eff"></param>
-        private void RefreshArea(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
+        private void BoostArea(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
         {
-            // This easy? Needs testing. 
-            eff.Area = (int)(basePower.Area * modifier);
+            // all pointer values extracted from SKSE 2.0.19 GameObjects.h
+            //IntPtr fRangePtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x0C; // range probably doesn't need to be increased
+
+            if (eff.Area > 0)
+            {
+                eff.Area = (int)(basePower.Area * modifier);
+
+                // Explosion area too, if it has one
+                if (basePower.ExplosionRadius != null)
+                {
+                    IntPtr fExplosionRadPtr = eff.Effect.Explosion.ExplosionData.Address + 0x38;
+                    Memory.WriteFloat(fExplosionRadPtr, basePower.ExplosionRadius.Value * modifier);
+                }
+
+                // projecile collision needs to be made larger too for things like Ice Storm
+                if (basePower.CollisionRadius != null)
+                {
+
+                    IntPtr fCollisionRadiusPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x6C;
+                    Memory.WriteFloat(fCollisionRadiusPtr, basePower.CollisionRadius.Value * modifier);
+                }
+
+                if (basePower.ConeSpread != null)
+                {
+                    IntPtr fConeSpreadPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x68;
+                    Memory.WriteFloat(fConeSpreadPtr, basePower.ConeSpread.Value * modifier);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Probably unbalanced, but makes wasting mana on charges less punishing by allowing you to hit targets easier
+        /// </summary>
+        /// <param name="eff"></param>
+        /// <param name="basePower"></param>
+        /// <param name="modifier"></param>
+        private void BoostSpeed(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
+        {
+            if (basePower.Speed != null)
+            {
+                IntPtr fSpeedPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x08;
+                Memory.WriteFloat(fSpeedPtr, basePower.Speed.Value * modifier);
+            }
         }
 
         /// <summary>
         /// toys
         /// </summary>
         /// <param name="eff"></param>
-        private void RefreshMisc(EffectItem eff)
+        private void BoostMisc(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
         {
-            // What about projectile/visual effect scaling?
-            IntPtr fSpeedPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x08;
+            if (eff.Effect.MagicProjectile?.ProjectileData == null)
+                return;
+            DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] RefreshMisc");
+
             IntPtr fRangePtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x0C;
             IntPtr fCollisionRadiusPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x6C;
-
-            // See what happens here
-            try
-            {
-                DebugHelper.Print($"[SpellPowerManager] fSpeedPtr (before): {NativeCrashLog.GetValueInfo(fSpeedPtr)}");
-                DebugHelper.Print($"[SpellPowerManager] fRangePtr (before): {NativeCrashLog.GetValueInfo(fRangePtr)}");
-                DebugHelper.Print($"[SpellPowerManager] fCollisionRadiusPtr (before): {NativeCrashLog.GetValueInfo(fCollisionRadiusPtr)}");
-
-                Memory.WriteFloat(fSpeedPtr, 7777);
-                Memory.WriteFloat(fRangePtr, 7);
-                Memory.WriteFloat(fCollisionRadiusPtr, 7777);
-
-                DebugHelper.Print($"[SpellPowerManager] fSpeedPtr (after): {NativeCrashLog.GetValueInfo(fSpeedPtr)}");
-                DebugHelper.Print($"[SpellPowerManager] fRangePtr (after): {NativeCrashLog.GetValueInfo(fRangePtr)}");
-                DebugHelper.Print($"[SpellPowerManager] fCollisionRadiusPtr (after): {NativeCrashLog.GetValueInfo(fCollisionRadiusPtr)}");
-            }
-            catch (Exception ex)
-            {
-                DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Failed to write to projectile data! {ex.Message}");
-            }
-
-            try
-            {
-                // What are these values??
-                IntPtr unk00 = eff.Effect.Explosion.ExplosionData.Address + 0x00;
-                IntPtr unk08 = eff.Effect.Explosion.ExplosionData.Address + 0x08;
-                IntPtr unk10 = eff.Effect.Explosion.ExplosionData.Address + 0x10;
-                IntPtr unk18 = eff.Effect.Explosion.ExplosionData.Address + 0x18;
-                IntPtr unk20 = eff.Effect.Explosion.ExplosionData.Address + 0x20;
-                IntPtr unk28 = eff.Effect.Explosion.ExplosionData.Address + 0x28;
-                IntPtr unk30 = eff.Effect.Explosion.ExplosionData.Address + 0x30;
-                IntPtr unk34 = eff.Effect.Explosion.ExplosionData.Address + 0x34;
-                IntPtr unk38 = eff.Effect.Explosion.ExplosionData.Address + 0x38;
-                IntPtr unk3C = eff.Effect.Explosion.ExplosionData.Address + 0x3C;
-                IntPtr unk40 = eff.Effect.Explosion.ExplosionData.Address + 0x40;
-                IntPtr unk44 = eff.Effect.Explosion.ExplosionData.Address + 0x44;
-                IntPtr unk48 = eff.Effect.Explosion.ExplosionData.Address + 0x48;
-                IntPtr unk4C = eff.Effect.Explosion.ExplosionData.Address + 0x4C;
-
-                DebugHelper.Print($"__unk00 as float : {Memory.ReadFloat(unk00)} ({NativeCrashLog.GetValueInfo(unk00)})");
-                DebugHelper.Print($"__unk08 as float : {Memory.ReadFloat(unk08)} ({NativeCrashLog.GetValueInfo(unk08)})");
-                DebugHelper.Print($"__unk10 as float : {Memory.ReadFloat(unk10)} ({NativeCrashLog.GetValueInfo(unk10)})");
-                DebugHelper.Print($"__unk18 as float : {Memory.ReadFloat(unk18)} ({NativeCrashLog.GetValueInfo(unk18)})");
-                DebugHelper.Print($"__unk20 as float : {Memory.ReadFloat(unk20)} ({NativeCrashLog.GetValueInfo(unk20)})");
-                DebugHelper.Print($"__unk28 as float : {Memory.ReadFloat(unk28)} ({NativeCrashLog.GetValueInfo(unk28)})");
-                DebugHelper.Print($"__unk30 as float : {Memory.ReadFloat(unk30)} ({NativeCrashLog.GetValueInfo(unk30)})");
-                DebugHelper.Print($"__unk34 as float : {Memory.ReadFloat(unk34)} ({NativeCrashLog.GetValueInfo(unk34)})");
-                DebugHelper.Print($"__unk38 as float : {Memory.ReadFloat(unk38)} ({NativeCrashLog.GetValueInfo(unk38)})");
-                DebugHelper.Print($"__unk3C as float : {Memory.ReadFloat(unk3C)} ({NativeCrashLog.GetValueInfo(unk3C)})");
-                DebugHelper.Print($"__unk40 as float : {Memory.ReadFloat(unk40)} ({NativeCrashLog.GetValueInfo(unk40)})");
-                DebugHelper.Print($"__unk44 as float : {Memory.ReadFloat(unk44)} ({NativeCrashLog.GetValueInfo(unk44)})");
-                DebugHelper.Print($"__unk48 as float : {Memory.ReadFloat(unk48)} ({NativeCrashLog.GetValueInfo(unk48)})");
-                DebugHelper.Print($"__unk4C as float : {Memory.ReadFloat(unk4C)} ({NativeCrashLog.GetValueInfo(unk4C)})");
-            }
-            catch (Exception ex)
-            {
-                DebugHelper.Print($"Failed to read to explosion data! {ex.Message}");
-            }
         }
 
         /// <summary>
@@ -163,23 +135,28 @@ namespace SpellChargingPlugin.Core
         /// <param name="eff"></param>
         private void RefreshActiveEffects(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
         {
+            // PeakValueMod spells (like Oakflesh) don't behave properly when updated in this manner
+            if (eff.Effect.Archetype == Archetypes.PeakValueMod)
+                return;
+
+            DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] RefreshActiveEffects");
             // Get all the actors affected by this effect
             var myFID = eff.Effect.FormId;
             var myActiveEffects = ActiveEffectTracker.Instance
                 .Tracked()
                 .ForBaseEffect(myFID)
-                .FromOffender(PlayerCharacter.Instance.Cast<Character>())
+                .FromOffender(_managedSpell.Holder.Actor.Cast<Character>())
                 .Where(e => e.Invalid == false)
                 .ToArray();
             if (myActiveEffects.Length == 0)
                 return;
-            DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Eff : {eff.Effect.Name} affects {myActiveEffects.Length} targets");
+            DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}] Eff : {eff.Effect.Name} affects {myActiveEffects.Length} targets");
             // Set Magnitude and call CalculateDurationAndMagnitude for each affected actor
             foreach (var victim in myActiveEffects)
             {
                 if (MemoryObject.FromAddress<ActiveEffect>(victim.Effect) is ActiveEffect)
                 {
-                    DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}:{eff.Effect.Name}] Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
+                    DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
 
                     victim.Magnitude = basePower.Magnitude * modifier;
                     Memory.InvokeCdecl(
@@ -190,22 +167,42 @@ namespace SpellChargingPlugin.Core
                 }
                 else
                 {
-                    DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}:{eff.Effect.Name}] Invalid ActiveEffect pointer {victim.Effect.ToHexString()}!");
+                    DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] Invalid ActiveEffect pointer {victim.Effect.ToHexString()}!");
                     victim.Invalid = true;
                 }
             }
         }
 
         /// <summary>
-        /// Adjust Magnitude and/or Duration according to Growth and Multiplier
+        /// Adjust Magnitude OR Duration according to Growth and Multiplier
         /// </summary>
         /// <param name="eff"></param>
-        private void RefreshPower(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
+        private void BoostPower(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
         {
-            // Boosting concentration duration AND magnitude would be a little too broken, even halved
-            if (!_isConcentration)
-                eff.Duration = (int)(basePower.Duration * (1.0f + modifier));
-            eff.Magnitude = basePower.Magnitude * (1.0f + modifier);
+            //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}:{eff.Effect.Name}] RefreshPower");
+
+            switch (_managedSpell.Holder.Mode)
+            {
+                case ChargingActor.OperationMode.Magnitude:
+                    eff.Magnitude = basePower.Magnitude * modifier;
+                    break;
+                case ChargingActor.OperationMode.Duration:
+                    eff.Duration = (int)(basePower.Duration * modifier);
+                    break;
+                case ChargingActor.OperationMode.Both:
+                    if(!_isConcentration) // would be too OP
+                        eff.Duration = (int)(basePower.Duration * modifier);
+                    eff.Magnitude = basePower.Magnitude * modifier;
+                    break;
+            }
+            //if (eff.Magnitude > 0f)
+            //{
+            //    eff.Magnitude = basePower.Magnitude * modifier;
+            //}
+            //else if (eff.Duration > 0)
+            //{
+            //    eff.Duration = (int)(basePower.Duration * modifier);
+            //}
         }
     }
 }

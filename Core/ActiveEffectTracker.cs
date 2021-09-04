@@ -36,6 +36,7 @@ namespace SpellChargingPlugin.Core
         }
         public void Clear()
         {
+            DebugHelper.Print($"[ActiveEffectTracker] Clearing");
             _trackedEffects.Clear();
         }
 
@@ -103,7 +104,7 @@ namespace SpellChargingPlugin.Core
                 return this;
             }
 
-            public TrackingSetup WithBase(uint formId)
+            public TrackingSetup WithBaseEffectFormID(uint formId)
             {
                 _entry.BaseEffectID = formId;
                 return this;

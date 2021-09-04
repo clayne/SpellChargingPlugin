@@ -54,6 +54,7 @@
     <Compile Include="Core\ChargingActor.cs" />
     <Compile Include="Core\ChargingSpell.cs" />
     <Compile Include="Core\SpellPowerManager.cs" />
+    <Compile Include="Hotkey.cs" />
     <Compile Include="ParticleSystem\Behaviors\BreatheBehavior.cs" />
     <Compile Include="ParticleSystem\Behaviors\FadeBehavior.cs" />
     <Compile Include="ParticleSystem\Behaviors\AimForwardBehavior.cs" />
@@ -80,4 +81,9 @@
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>cd $(TargetDir)
+del NetScriptFramework.dll
+del NetScriptFramework.SkyrimSE.dll</PostBuildEvent>
+  </PropertyGroup>
 </Project>

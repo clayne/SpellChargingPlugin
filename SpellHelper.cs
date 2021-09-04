@@ -1,5 +1,6 @@
 ﻿using NetScriptFramework.SkyrimSE;
 using SpellChargingPlugin.Core;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -29,18 +30,38 @@ namespace SpellChargingPlugin
         /// <summary>
         /// Holds Spell Magnitude and Duration
         /// </summary>
-        public readonly struct EffectPower
+        public sealed class EffectPower
         {
-            public readonly float Magnitude;
-            public readonly int Duration;
-            public readonly float Area;
+            public float Magnitude;
+            public int Duration;
+            public float Area;
+            public float? Speed;
+            public float? ExplosionRadius;
+            public float? CollisionRadius;
+            public float? ConeSpread;
+        }
 
-            public EffectPower(float magnitude, int duration, float area)
+        /// <summary>
+        /// Because the main attributes that define a spell's "power" are Magnitude and Duration, this will check whether a spell can even be considered a valid candidate for charging.
+        /// If a spell has neither a duration nor a magnitude, it is not a valid charging spell (scripted/special).
+        /// If it has no magnitude but a duration, and is a concentration spell, it is not a valid charging spell (most likely scripted).
+        /// </summary>
+        /// <param name="spell"></param>
+        /// <returns></returns>
+        internal static bool CanSpellBeCharged(SpellItem spell)
+        {
+            bool hasMagnitudeSomewhere = false;
+            bool hasDurationSomewhere = false;
+            foreach (var eff in spell.Effects)
             {
-                Magnitude = magnitude;
-                Duration = duration;
-                Area = area;
+                hasMagnitudeSomewhere = hasMagnitudeSomewhere || eff.Magnitude > 0f;
+                hasDurationSomewhere = hasDurationSomewhere || eff.Duration > 0;
             }
+            if (spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration)
+                hasDurationSomewhere = false;
+            var ret = hasMagnitudeSomewhere || hasDurationSomewhere;
+            DebugHelper.Print($"Spell {spell.Name} {(!ret ? "can't" : "can")} be charged.");
+            return ret;
         }
 
         private static Dictionary<EffectItem, EffectPower> _baseEffectPowers = new Dictionary<EffectItem, EffectPower>();
@@ -54,11 +75,18 @@ namespace SpellChargingPlugin
         {
             if (!_baseEffectPowers.ContainsKey(effectItem))
                 _baseEffectPowers.Add(
-                    effectItem, 
-                    new EffectPower(
-                        effectItem.Magnitude, 
-                        effectItem.Duration,
-                        effectItem.Area));
+                    effectItem,
+                    new EffectPower()
+                    {
+                        Magnitude = effectItem.Magnitude,
+                        Duration = effectItem.Duration,
+                        Area = effectItem.Area,
+                        Speed = effectItem.Effect.MagicProjectile?.ProjectileData?.Speed,
+                        ExplosionRadius = effectItem.Effect.Explosion?.ExplosionData?.Radius,
+                        CollisionRadius = effectItem.Effect.MagicProjectile?.ProjectileData?.CollisionRadius,
+                        ConeSpread = effectItem.Effect.MagicProjectile?.ProjectileData?.ConeSpread,
+                    });
+
             return _baseEffectPowers[effectItem];
         }
 

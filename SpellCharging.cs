@@ -1,5 +1,6 @@
 ﻿using NetScriptFramework;
 using NetScriptFramework.SkyrimSE;
+using NetScriptFramework.Tools;
 using SpellChargingPlugin.Core;
 using System;
 using System.Collections.Generic;
@@ -22,7 +23,7 @@ namespace SpellChargingPlugin
         private long? _lastOnFrameTime = null;
         private float _fUpdatesPerSecond = 1.0f / Settings.Instance.UpdatesPerSecond;
 
-        private Core.ChargingActor _chargingPlayer = new Core.ChargingActor();
+        private Core.ChargingActor _chargingPlayer;
         private Util.SimpleTimer _simpleTimer = new Util.SimpleTimer();
 
         /// <summary>
@@ -61,12 +62,16 @@ namespace SpellChargingPlugin
                 Update(elapsedMilliSeconds / 1000.0f);
             });
 
-            // TODO: TEST
+            Hook_ActiveEffect_CalculateDurationAndMagnitude();
+        }
+
+        private static void Hook_ActiveEffect_CalculateDurationAndMagnitude()
+        {
             Memory.WriteHook(new HookParameters()
             {
                 Address = Util.addr_CalculateDurationAndMagnitude,
-                IncludeLength = 0x10,
-                ReplaceLength = 0x10,
+                IncludeLength = 0x20,
+                ReplaceLength = 0x20,
                 After = ctx => // before? after? i don't know
                 {
                     var activeEffectPtr = ctx.CX;
@@ -81,7 +86,11 @@ namespace SpellChargingPlugin
                     //float duration = Memory.ReadFloat(activeEffectPtr + 0x74);
                     float magnitude = Memory.ReadFloat(activeEffectPtr + 0x78);
 
-                    var tracked = ActiveEffectTracker.Instance.Tracked(activeEffectPtr).FromOffender(offenderPtr).ForVictim(victimPtr).SingleOrDefault();
+                    var tracked = ActiveEffectTracker.Instance
+                        .Tracked(activeEffectPtr)
+                        .FromOffender(offenderPtr)
+                        .ForVictim(victimPtr)
+                        .SingleOrDefault();
                     if (tracked == default)
                     {
                         ActiveEffectTracker.Instance
@@ -90,9 +99,12 @@ namespace SpellChargingPlugin
                             .For(victimPtr)
                             .WithEffect(activeEffectPtr)
                             .WithMagnitude(magnitude)
-                            .WithBase(activeEffect.EffectData.Effect.FormId);
+                            .WithBaseEffectFormID(activeEffect.EffectData.Effect.FormId);
                         return;
                     }
+
+                    DebugHelper.Print($"[SpellCharging] Tracked actor MATCH: {tracked.Me.ToHexString()}");
+
                     // Damaging spells, despite having a positive magnitute, apparently switch to negative magnitudes on their effects?
                     // Makes sense for "valuemodifier" types, I guess
                     if (magnitude < 0f)
@@ -111,7 +123,10 @@ namespace SpellChargingPlugin
 
             _simpleTimer.Update(elapsedSeconds);
 
-            if(_simpleTimer.HasElapsed(_fUpdatesPerSecond, out var exact))
+             if(_chargingPlayer == null)
+                _chargingPlayer = new Core.ChargingActor(PlayerCharacter.Instance);
+
+            if (_simpleTimer.HasElapsed(_fUpdatesPerSecond, out var exact))
                 _chargingPlayer.Update(exact);
         }
     }

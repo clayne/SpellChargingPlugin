@@ -20,7 +20,7 @@ namespace SpellChargingPlugin.StateMachine.States
         /// <param name="elapsedSeconds"></param>
         protected override void OnUpdate(float elapsedSeconds)
         {
-            _context.Reset();
+            _context.ResetAndClean();
             TransitionTo(() => new Idle(_context));
         }
     }

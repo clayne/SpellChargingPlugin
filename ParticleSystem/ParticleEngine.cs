@@ -57,7 +57,7 @@ namespace SpellChargingPlugin.ParticleSystem
 
             _sTimer.Update(elapsedSeconds);
 
-            foreach (var item in _activeParticles)
+            foreach (var item in _activeParticles.Where(p => !p.Delete))
             {
                 item.Update(elapsedSeconds);
                 if (item.Delete)

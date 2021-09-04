@@ -1,4 +1,5 @@
-﻿using NetScriptFramework.SkyrimSE;
+﻿using NetScriptFramework;
+using NetScriptFramework.SkyrimSE;
 using SpellChargingPlugin.Core;
 using SpellChargingPlugin.StateMachine;
 using System;

@@ -15,7 +15,7 @@ namespace SpellChargingPlugin.ParticleSystem
 
         private NiAVObject _niAvObject;
         private List<IParticleBehavior> _behaviors = new List<IParticleBehavior>();
-
+        private bool _disposing = false;
         public static Particle Create(string nifPath)
         {
             if (string.IsNullOrEmpty(nifPath))
@@ -34,6 +34,9 @@ namespace SpellChargingPlugin.ParticleSystem
 
         public void Dispose()
         {
+            if (_disposing)
+                return;
+            _disposing = true;
             _niAvObject.Detach();
             _niAvObject.DecRef();
             _niAvObject = null;
