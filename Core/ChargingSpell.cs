@@ -28,11 +28,11 @@ namespace SpellChargingPlugin.Core
         private NiNode _particleOrbitCenter;
         private bool _isConcentration;
         private float _chargeLevel = 0f;
+        private bool _denyRefund = true;
 
         private ParticleEngine _particleEngine;
         private List<Particle> _spellParticles;
         private Util.SimpleTimer _chargingTimer = new Util.SimpleTimer();
-
         private readonly float _fChargesPerSecond = 1.0f / Settings.Instance.ChargesPerSecond;
 
         public ChargingSpell(ChargingActor holder, SpellItem spell, EquippedSpellSlots slot)
@@ -54,7 +54,6 @@ namespace SpellChargingPlugin.Core
             DebugHelper.Print($"[ChargingSpell] Create Spell Power Manager");
             _spellPowerManager = SpellPowerManager.Create(this);
             _spellPowerManager.Growth = Settings.Instance.PowerPerCharge / 100f;
-            _spellPowerManager.Multiplier = _chargeLevel;
 
             // TODO: this is stupid, cache it or something
             DebugHelper.Print($"[ChargingSpell] Load Base Particle(s)");
@@ -131,6 +130,8 @@ namespace SpellChargingPlugin.Core
             _spellPowerManager.Multiplier = _chargeLevel;
             if (_chargeLevel > 0f && (int)_chargeLevel % Settings.Instance.ChargesPerParticle == 0)
                 AddParticleForCharge(_chargeLevel);
+
+            _denyRefund = false;
         }
 
         private void AddParticleForCharge(float chargeLevel)
@@ -192,6 +193,15 @@ namespace SpellChargingPlugin.Core
                 return false;
             Holder.Actor.DamageActorValue(ActorValueIndices.Magicka, -magCost);
             return true;
+        }
+
+        public void Refund()
+        {
+            if (_denyRefund)
+                return;
+            float toRefund = _chargeLevel * Settings.Instance.MagickaPerCharge;
+            Holder.Actor.RestoreActorValue(ActorValueIndices.Magicka, toRefund);
+            _denyRefund = true;
         }
 
         public void ResetAndClean()

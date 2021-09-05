@@ -21,7 +21,7 @@ namespace SpellChargingPlugin
         }
         private Settings(){ }
 
-        [ConfigValue("OperationMode", "Default Mode", "By default, only a spell's magnitude (damage/healing/armor..) will be affedted.\nAllowed: Magnitude, Duration, Both, Disabled\nYou can also switch between them ingame by pressing the hotkey.")]
+        [ConfigValue("OperationMode", "Default Mode", "By default, only a spell's magnitude (damage/healing/armor..) will be affected.\nAllowed: Magnitude, Duration, Disabled\nYou can also switch between them ingame by pressing the hotkey.")]
         public string OperationMode { get; internal set; }
             = "Magnitude";
 
@@ -65,8 +65,21 @@ namespace SpellChargingPlugin
         public bool LogDebugMessages { get; internal set; }
             = true;
 
+        [ConfigValue("ArtObjectMagnitude", "ArtObject for Magnitude", "The FormID of the ARTO that gets attached when in 'Magnitude' overcharge mode.", ConfigEntryFlags.PreferHex)]
+        public uint ArtObjectMagnitude { get; internal set; }
+            = 0x74795;
+
+        [ConfigValue("ArtObjectDuration", "ArtObject for Duration", "The FormID of the ARTO that gets attached when in 'Duration' overcharge mode.", ConfigEntryFlags.PreferHex)]
+        public uint ArtObjectDuration { get; internal set; }
+            = 0x7331C;
+
+        [ConfigValue("ArtObjectDisabled", "ArtObject for Disabled", "The FormID of the ARTO that gets attached when in 'Disabled' overcharge mode.", ConfigEntryFlags.PreferHex)]
+        public uint ArtObjectDisabled { get; internal set; }
+            = 0x8AFD1;
+
         [ConfigValue("EquipBothFormID", "EquipBoth FormID", "Don't touch this.", ConfigEntryFlags.PreferHex | ConfigEntryFlags.Hidden)]
         public uint EquipBothFormID { get; internal set; }
             = 0x00013F45;
+        
     }
 }

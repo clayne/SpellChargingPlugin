@@ -11,8 +11,13 @@ namespace SpellChargingPlugin.Core
 {
     public class ChargingActor
     {
-        public enum OperationMode { Disabled, Magnitude, Duration, Both }
-        readonly uint[] _modeArtObjects = { 0x00, 0xE7559, 0xE7559, 0xE7559 }; // find or create some decent visuals
+        public enum OperationMode { Disabled, Magnitude, Duration }
+        private Dictionary<OperationMode, uint> _modeArtObjects = new Dictionary<OperationMode, uint>
+        {
+            { OperationMode.Disabled, Settings.Instance.ArtObjectDisabled },
+            { OperationMode.Magnitude, Settings.Instance.ArtObjectMagnitude },
+            { OperationMode.Duration, Settings.Instance.ArtObjectDuration },
+        };
         public Character Actor { get; }
         public OperationMode Mode { get; private set; } = OperationMode.Disabled;
 
@@ -63,8 +68,12 @@ namespace SpellChargingPlugin.Core
         private void RotateOperationMode()
         {
             int cur = (int)Mode;
-            int next = (++cur) % 4;
+            int next = (++cur) % 3;
             OperationMode nextMode = (OperationMode)next;
+            // only toggle between MAG and DUR while charging
+            if (nextMode == OperationMode.Disabled && (_chargingSpellLeft?.CurrentState is StateMachine.States.Charging || _chargingSpellRight.CurrentState is StateMachine.States.Charging))
+                nextMode = OperationMode.Magnitude;
+            
             SetOperationMode(nextMode);
         }
 
@@ -74,20 +83,16 @@ namespace SpellChargingPlugin.Core
         private void SetOperationMode(OperationMode newMode)
         {
             foreach (var fid in _modeArtObjects)
-                Util.Visuals.DetachArtObject(fid, Actor);
+                Util.Visuals.DetachArtObject(fid.Value, Actor);
 
             MenuManager.ShowHUDMessage($"Overcharge : {newMode}", null, false);
 
-            if (Mode == OperationMode.Disabled && newMode != OperationMode.Disabled)
-                Util.Visuals.AttachArtObject(0x56AC8, Actor); // ShieldSpellFX
-            if (newMode != OperationMode.Disabled)
-                Util.Visuals.AttachArtObject(_modeArtObjects[(int)newMode], Actor);
-            else // newMode == disabled
+            Util.Visuals.AttachArtObject(_modeArtObjects[newMode], Actor);
+            if (newMode == OperationMode.Disabled)
             {
-                Util.Visuals.DetachArtObject(0x56AC8, Actor); // ShieldSpellFX
                 ClearSpell(ref _chargingSpellLeft);
                 ClearSpell(ref _chargingSpellRight);
-            }
+            } 
 
             Mode = newMode;
         }

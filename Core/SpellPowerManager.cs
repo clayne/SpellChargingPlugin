@@ -4,11 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static NetScriptFramework.SkyrimSE.ActiveEffect;
+using static SpellChargingPlugin.SpellHelper;
 
 namespace SpellChargingPlugin.Core
 {
     /// <summary>
     /// Handles Effect Magnitude and Duration adjustments for a single Spell
+    /// All pointer values extracted from SKSE 2.0.19 GameObjects.h
     /// </summary>
     public class SpellPowerManager
     {
@@ -50,17 +52,39 @@ namespace SpellChargingPlugin.Core
         {
             foreach (var eff in _managedSpell.Spell.Effects)
             {
-                var basePower = SpellHelper.GetBasePower(eff);
-                float baseModifier = 1f + _growth * _multiplier; // for power, linear gains
-                float adjustedModifier = 1f + (float)Math.Log10(baseModifier) * 0.5f; // for area and speed, diminishing gains, less steep
+                var basePower = GetBasePower(eff);
+                EffectPower mod = GetModifiedPower(eff);
+                float adjustedGrowth = _growth / 4;
+
+                if (_multiplier > 1)
+                {
+                    if (_managedSpell.Holder.Mode == ChargingActor.OperationMode.Magnitude)
+                        mod.Magnitude += basePower.Magnitude * _growth;
+                    else
+                        mod.Duration += basePower.Duration * _growth;
+
+                    mod.Area += basePower.Area * adjustedGrowth;
+                    if (mod.CollisionRadius != null)
+                        mod.CollisionRadius += basePower.CollisionRadius * adjustedGrowth;
+                    if (mod.ConeSpread != null)
+                        mod.ConeSpread += basePower.ConeSpread * adjustedGrowth;
+                    if (mod.ExplosionRadius != null)
+                        mod.ExplosionRadius += basePower.ExplosionRadius * adjustedGrowth;
+                    if (mod.Speed != null)
+                        mod.Speed += basePower.Speed * adjustedGrowth;
+                }
+                else
+                {
+                    mod.ResetTo(basePower);
+                }
 
                 //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Eff: {eff.Effect.Name} Mod: {modifier}");
-                BoostPower(eff, basePower, baseModifier);
-                BoostArea(eff, basePower, adjustedModifier);
-                BoostSpeed(eff, basePower, adjustedModifier);
+                ApplyModPower(eff, mod);
+                ApplyModArea(eff, mod);
+                ApplyModSpeed(eff, mod);
 
                 if (_isConcentration)
-                    RefreshActiveEffects(eff, basePower, baseModifier);
+                    ApplyModActiveEffects(eff, mod);
             }
         }
 
@@ -68,34 +92,27 @@ namespace SpellChargingPlugin.Core
         /// Experimental buff to area (may not work)
         /// </summary>
         /// <param name="eff"></param>
-        private void BoostArea(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
+        private void ApplyModArea(EffectItem eff, EffectPower modifiedPower)
         {
-            // all pointer values extracted from SKSE 2.0.19 GameObjects.h
-            //IntPtr fRangePtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x0C; // range probably doesn't need to be increased
-
-            if (eff.Area > 0)
+            if (modifiedPower.Area > 0)
             {
-                eff.Area = (int)(basePower.Area * modifier);
-
+                eff.Area = (int)(modifiedPower.Area);
                 // Explosion area too, if it has one
-                if (basePower.ExplosionRadius != null)
+                if (modifiedPower.ExplosionRadius != null)
                 {
                     IntPtr fExplosionRadPtr = eff.Effect.Explosion.ExplosionData.Address + 0x38;
-                    Memory.WriteFloat(fExplosionRadPtr, basePower.ExplosionRadius.Value * modifier);
+                    Memory.WriteFloat(fExplosionRadPtr, modifiedPower.ExplosionRadius.Value);
                 }
-
                 // projecile collision needs to be made larger too for things like Ice Storm
-                if (basePower.CollisionRadius != null)
+                if (modifiedPower.CollisionRadius != null)
                 {
-
                     IntPtr fCollisionRadiusPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x6C;
-                    Memory.WriteFloat(fCollisionRadiusPtr, basePower.CollisionRadius.Value * modifier);
+                    Memory.WriteFloat(fCollisionRadiusPtr, modifiedPower.CollisionRadius.Value);
                 }
-
-                if (basePower.ConeSpread != null)
+                if (modifiedPower.ConeSpread != null)
                 {
                     IntPtr fConeSpreadPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x68;
-                    Memory.WriteFloat(fConeSpreadPtr, basePower.ConeSpread.Value * modifier);
+                    Memory.WriteFloat(fConeSpreadPtr, modifiedPower.ConeSpread.Value);
                 }
             }
         }
@@ -106,12 +123,12 @@ namespace SpellChargingPlugin.Core
         /// <param name="eff"></param>
         /// <param name="basePower"></param>
         /// <param name="modifier"></param>
-        private void BoostSpeed(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
+        private void ApplyModSpeed(EffectItem eff, EffectPower modifiedPower)
         {
-            if (basePower.Speed != null)
+            if (modifiedPower.Speed != null)
             {
                 IntPtr fSpeedPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x08;
-                Memory.WriteFloat(fSpeedPtr, basePower.Speed.Value * modifier);
+                Memory.WriteFloat(fSpeedPtr, modifiedPower.Speed.Value);
             }
         }
 
@@ -119,7 +136,7 @@ namespace SpellChargingPlugin.Core
         /// toys
         /// </summary>
         /// <param name="eff"></param>
-        private void BoostMisc(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
+        private void ApplyModMisc(EffectItem eff, EffectPower modifiedPower)
         {
             if (eff.Effect.MagicProjectile?.ProjectileData == null)
                 return;
@@ -133,7 +150,7 @@ namespace SpellChargingPlugin.Core
         /// Refresh ActiveEffects on targets affected by this effect (should only be needed with Concentration type spells)
         /// </summary>
         /// <param name="eff"></param>
-        private void RefreshActiveEffects(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
+        private void ApplyModActiveEffects(EffectItem eff, EffectPower modifiedPower)
         {
             // PeakValueMod spells (like Oakflesh) don't behave properly when updated in this manner
             if (eff.Effect.Archetype == Archetypes.PeakValueMod)
@@ -158,7 +175,7 @@ namespace SpellChargingPlugin.Core
                 {
                     DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
 
-                    victim.Magnitude = basePower.Magnitude * modifier;
+                    victim.Magnitude = modifiedPower.Magnitude;
                     Memory.InvokeCdecl(
                         Util.addr_CalculateDurationAndMagnitude,    //void __fastcall sub(
                         victim.Effect,                              //  ActiveEffect * a1, 
@@ -177,32 +194,11 @@ namespace SpellChargingPlugin.Core
         /// Adjust Magnitude OR Duration according to Growth and Multiplier
         /// </summary>
         /// <param name="eff"></param>
-        private void BoostPower(EffectItem eff, SpellHelper.EffectPower basePower, float modifier)
+        private void ApplyModPower(EffectItem eff, EffectPower modifiedPower)
         {
             //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}:{eff.Effect.Name}] RefreshPower");
-
-            switch (_managedSpell.Holder.Mode)
-            {
-                case ChargingActor.OperationMode.Magnitude:
-                    eff.Magnitude = basePower.Magnitude * modifier;
-                    break;
-                case ChargingActor.OperationMode.Duration:
-                    eff.Duration = (int)(basePower.Duration * modifier);
-                    break;
-                case ChargingActor.OperationMode.Both:
-                    if(!_isConcentration) // would be too OP
-                        eff.Duration = (int)(basePower.Duration * modifier);
-                    eff.Magnitude = basePower.Magnitude * modifier;
-                    break;
-            }
-            //if (eff.Magnitude > 0f)
-            //{
-            //    eff.Magnitude = basePower.Magnitude * modifier;
-            //}
-            //else if (eff.Duration > 0)
-            //{
-            //    eff.Duration = (int)(basePower.Duration * modifier);
-            //}
+            eff.Magnitude = modifiedPower.Magnitude;
+            eff.Duration = (int)modifiedPower.Duration;
         }
     }
 }

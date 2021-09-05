@@ -36,7 +36,7 @@ namespace SpellChargingPlugin.StateMachine.States
             switch (handState.Value.State)
             {
                 case MagicCastingStates.Charged:
-                case MagicCastingStates.Concentrating: // does not work properly (yet)
+                case MagicCastingStates.Concentrating:
                     if (!Settings.Instance.AllowConcentrationSpells && handState.Value.State == MagicCastingStates.Concentrating)
                         break;
                     

@@ -10,36 +10,8 @@ namespace SpellChargingPlugin
 {
     public static class SpellHelper
     {
-        /// <summary>
-        /// Represents a Spell and its State in an actor's hand
-        /// </summary>
-        public readonly struct SpellHandState
-        {
-            public readonly MagicCastingStates State;
-            public readonly SpellItem Spell;
-            public readonly EquippedSpellSlots Slot;
-
-            public SpellHandState(MagicCastingStates state, SpellItem spell, EquippedSpellSlots slot)
-            {
-                State = state;
-                Spell = spell;
-                Slot = slot;
-            }
-        }
-
-        /// <summary>
-        /// Holds Spell Magnitude and Duration
-        /// </summary>
-        public sealed class EffectPower
-        {
-            public float Magnitude;
-            public int Duration;
-            public float Area;
-            public float? Speed;
-            public float? ExplosionRadius;
-            public float? CollisionRadius;
-            public float? ConeSpread;
-        }
+        private static Dictionary<EffectItem, EffectPower> _baseEffectPowers = new Dictionary<EffectItem, EffectPower>();
+        private static Dictionary<EffectItem, EffectPower> _modifiedPowers = new Dictionary<EffectItem, EffectPower>();
 
         /// <summary>
         /// Because the main attributes that define a spell's "power" are Magnitude and Duration, this will check whether a spell can even be considered a valid candidate for charging.
@@ -63,8 +35,6 @@ namespace SpellChargingPlugin
             DebugHelper.Print($"Spell {spell.Name} {(!ret ? "can't" : "can")} be charged.");
             return ret;
         }
-
-        private static Dictionary<EffectItem, EffectPower> _baseEffectPowers = new Dictionary<EffectItem, EffectPower>();
 
         /// <summary>
         /// Get the BASE Magniture and/or Durations for the given Effect
@@ -91,13 +61,34 @@ namespace SpellChargingPlugin
         }
 
         /// <summary>
+        /// Returns the MODIFIED (base + bonus) effect power
+        /// </summary>
+        /// <param name="eff"></param>
+        /// <returns></returns>
+        public static EffectPower GetModifiedPower(EffectItem eff)
+        {
+            if (!_modifiedPowers.TryGetValue(eff, out var mod))
+                _modifiedPowers.Add(eff, mod = new EffectPower()
+                {
+                    Magnitude = eff.Magnitude,
+                    Duration = eff.Duration,
+                    Area = eff.Area,
+                    Speed = eff.Effect.MagicProjectile?.ProjectileData?.Speed,
+                    ExplosionRadius = eff.Effect.Explosion?.ExplosionData?.Radius,
+                    CollisionRadius = eff.Effect.MagicProjectile?.ProjectileData?.CollisionRadius,
+                    ConeSpread = eff.Effect.MagicProjectile?.ProjectileData?.ConeSpread,
+                });
+            return mod;
+        }
+
+        /// <summary>
         /// Self-explanatory. A more lightweight version of <cref>GetSpellAndState</cref> for when you don't need the State
         /// </summary>
         /// <param name="character"></param>
         /// <param name="hand"></param>
         /// <returns></returns>
         public static SpellItem GetSpell(Character character, EquippedSpellSlots hand)
-         => character?.GetEquippedSpell(hand);
+            => character?.GetEquippedSpell(hand);
 
         /// <summary>
         /// Self-explanatory.
@@ -114,6 +105,48 @@ namespace SpellChargingPlugin
                 return null;
             var spellState = character.GetMagicCaster(hand).State;
             return new SpellHandState (spellState, spellInHand, hand);
+        }
+
+        /// <summary>
+        /// Represents a Spell and its State in an actor's hand
+        /// </summary>
+        public readonly struct SpellHandState
+        {
+            public readonly MagicCastingStates State;
+            public readonly SpellItem Spell;
+            public readonly EquippedSpellSlots Slot;
+
+            public SpellHandState(MagicCastingStates state, SpellItem spell, EquippedSpellSlots slot)
+            {
+                State = state;
+                Spell = spell;
+                Slot = slot;
+            }
+        }
+
+        /// <summary>
+        /// Holds temporary spell power
+        /// </summary>
+        public sealed class EffectPower
+        {
+            public float Magnitude;
+            public float Duration;
+            public float Area;
+            public float? Speed;
+            public float? ExplosionRadius;
+            public float? CollisionRadius;
+            public float? ConeSpread;
+
+            public void ResetTo(EffectPower basePower)
+            {
+                Magnitude       = basePower.Magnitude;
+                Duration        = basePower.Duration;
+                Area            = basePower.Area;
+                Speed           = basePower.Speed;
+                ExplosionRadius = basePower.ExplosionRadius;
+                CollisionRadius = basePower.CollisionRadius;
+                ConeSpread      = basePower.ConeSpread;
+            }
         }
     }
 }
