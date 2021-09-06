@@ -22,6 +22,9 @@ namespace SpellChargingPlugin
         /// <returns></returns>
         internal static bool CanSpellBeCharged(SpellItem spell)
         {
+            if (spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration && spell.Effects.Any(e => e.Effect.Archetype == Archetypes.PeakValueMod))
+                return false;
+
             bool hasMagnitudeSomewhere = false;
             bool hasDurationSomewhere = false;
             foreach (var eff in spell.Effects)
@@ -31,9 +34,7 @@ namespace SpellChargingPlugin
             }
             if (spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration)
                 hasDurationSomewhere = false;
-            var ret = hasMagnitudeSomewhere || hasDurationSomewhere;
-            DebugHelper.Print($"Spell {spell.Name} {(!ret ? "can't" : "can")} be charged.");
-            return ret;
+            return hasMagnitudeSomewhere || hasDurationSomewhere;
         }
 
         /// <summary>

@@ -43,6 +43,7 @@ namespace SpellChargingPlugin.Core
 
             // if the spell cannot (or should not) be charged, don't bother with setup
             CanCharge = SpellHelper.CanSpellBeCharged(spell);
+            DebugHelper.Print($"Spell {spell.Name} {(!CanCharge ? "can't" : "can")} be charged.");
             if (!CanCharge)
                 return;
 
@@ -137,7 +138,7 @@ namespace SpellChargingPlugin.Core
 
             if (!TryDrainMagicka(Settings.Instance.MagickaPerCharge))
                 return;
-
+            
             ++_chargeLevel;
             if (Settings.Instance.ChargesPerParticle > 0 && _chargeLevel > 0f && _chargeLevel % Settings.Instance.ChargesPerParticle == 0)
                 AddParticleForCharge(_chargeLevel);
