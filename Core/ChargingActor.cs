@@ -29,11 +29,24 @@ namespace SpellChargingPlugin.Core
         public ChargingActor(Character character)
         {
             Actor = character;
+            CleanUp();
             Register();
-            if (Enum.TryParse<OperationMode>(Settings.Instance.OperationMode, out var mode))
-                SetOperationMode(mode);
-            else
-                SetOperationMode(OperationMode.Magnitude);
+
+            if (!Enum.TryParse<OperationMode>(Settings.Instance.OperationMode, out var mode))
+                mode = OperationMode.Magnitude;
+            SetOperationMode(mode);
+        }
+
+        /// <summary>
+        /// Remove sticky ArtObject
+        /// </summary>
+        public void CleanUp()
+        {
+            Util.Visuals.DetachArtObject(0xE7559, Actor); // bane undead (from an old version)
+            Util.Visuals.DetachArtObject(0x56AC8, Actor); // ShieldSpellFX
+
+            foreach (var fid in _modeArtObjects)
+                Util.Visuals.DetachArtObject(fid.Value, Actor);
         }
 
         /// <summary>
@@ -41,6 +54,9 @@ namespace SpellChargingPlugin.Core
         /// </summary>
         private void Register()
         {
+            if (Actor.BaseForm.FormId != PlayerCharacter.Instance.BaseForm.FormId)
+                return;
+
             DebugHelper.Print($"[ChargingActor] Register OnUpdateCamera");
             Events.OnUpdateCamera.Register(e =>
             {
@@ -73,7 +89,7 @@ namespace SpellChargingPlugin.Core
             // only toggle between MAG and DUR while charging
             if (nextMode == OperationMode.Disabled && (_chargingSpellLeft?.CurrentState is StateMachine.States.Charging || _chargingSpellRight.CurrentState is StateMachine.States.Charging))
                 nextMode = OperationMode.Magnitude;
-            
+
             SetOperationMode(nextMode);
         }
 
@@ -82,8 +98,7 @@ namespace SpellChargingPlugin.Core
         /// </summary>
         private void SetOperationMode(OperationMode newMode)
         {
-            foreach (var fid in _modeArtObjects)
-                Util.Visuals.DetachArtObject(fid.Value, Actor);
+            CleanUp();
 
             MenuManager.ShowHUDMessage($"Overcharge : {newMode}", null, false);
 
@@ -92,7 +107,7 @@ namespace SpellChargingPlugin.Core
             {
                 ClearSpell(ref _chargingSpellLeft);
                 ClearSpell(ref _chargingSpellRight);
-            } 
+            }
 
             Mode = newMode;
         }

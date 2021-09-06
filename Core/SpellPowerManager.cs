@@ -17,15 +17,8 @@ namespace SpellChargingPlugin.Core
         /// <summary>
         /// Percentage gain of power ("power per charge")
         /// </summary>
-        public float Growth { get => _growth; set { _growth = value; Refresh(); } }
+        public float Growth { get; set; }
 
-        /// <summary>
-        /// Growth multiplier ("current charges")
-        /// </summary>
-        public float Multiplier { get => _multiplier; set { _multiplier = value; Refresh(); } }
-
-        private float _growth;
-        private float _multiplier;
         private ChargingSpell _managedSpell;
         private bool _isConcentration;
 
@@ -38,45 +31,36 @@ namespace SpellChargingPlugin.Core
             var ret = new SpellPowerManager()
             {
                 _managedSpell = spell,
-                _growth = 0.0f,
-                _multiplier = 0.0f,
                 _isConcentration = spell.Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration,
             };
             return ret;
         }
 
         /// <summary>
-        /// Refresh Spell magnitudes and other associated attributes and effects
+        /// Grow Spell magnitudes and other associated attributes and effects by one rank
         /// </summary>
-        private void Refresh()
+        public void IncreasePower()
         {
             foreach (var eff in _managedSpell.Spell.Effects)
             {
                 var basePower = GetBasePower(eff);
                 EffectPower mod = GetModifiedPower(eff);
-                float adjustedGrowth = _growth / 4;
+                float adjustedGrowth = Growth / 10f;
 
-                if (_multiplier > 1)
-                {
-                    if (_managedSpell.Holder.Mode == ChargingActor.OperationMode.Magnitude)
-                        mod.Magnitude += basePower.Magnitude * _growth;
-                    else
-                        mod.Duration += basePower.Duration * _growth;
-
-                    mod.Area += basePower.Area * adjustedGrowth;
-                    if (mod.CollisionRadius != null)
-                        mod.CollisionRadius += basePower.CollisionRadius * adjustedGrowth;
-                    if (mod.ConeSpread != null)
-                        mod.ConeSpread += basePower.ConeSpread * adjustedGrowth;
-                    if (mod.ExplosionRadius != null)
-                        mod.ExplosionRadius += basePower.ExplosionRadius * adjustedGrowth;
-                    if (mod.Speed != null)
-                        mod.Speed += basePower.Speed * adjustedGrowth;
-                }
+                if (_managedSpell.Holder.Mode == ChargingActor.OperationMode.Magnitude)
+                    mod.Magnitude += basePower.Magnitude * Growth;
                 else
-                {
-                    mod.ResetTo(basePower);
-                }
+                    mod.Duration += basePower.Duration * Growth;
+
+                mod.Area += basePower.Area * adjustedGrowth;
+                if (mod.CollisionRadius != null)
+                    mod.CollisionRadius += basePower.CollisionRadius * adjustedGrowth;
+                if (mod.ConeSpread != null)
+                    mod.ConeSpread += basePower.ConeSpread * adjustedGrowth;
+                if (mod.ExplosionRadius != null)
+                    mod.ExplosionRadius += basePower.ExplosionRadius * adjustedGrowth;
+                if (mod.Speed != null)
+                    mod.Speed += basePower.Speed * adjustedGrowth;
 
                 //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Eff: {eff.Effect.Name} Mod: {modifier}");
                 ApplyModPower(eff, mod);
@@ -86,6 +70,32 @@ namespace SpellChargingPlugin.Core
                 if (_isConcentration)
                     ApplyModActiveEffects(eff, mod);
             }
+        }
+
+        /// <summary>
+        /// Reset all spell effect magnitudes etc to their base power level
+        /// </summary>
+        public void ResetPower()
+        {
+            foreach (var eff in _managedSpell.Spell.Effects)
+            {
+                var mod = GetModifiedPower(eff);
+                mod.ResetTo(GetBasePower(eff));
+                ApplyModPower(eff, mod);
+                ApplyModArea(eff, mod);
+                ApplyModSpeed(eff, mod);
+            }
+        }
+
+        /// <summary>
+        /// Adjust Magnitude / Duration
+        /// </summary>
+        /// <param name="eff"></param>
+        private void ApplyModPower(EffectItem eff, EffectPower modifiedPower)
+        {
+            //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}:{eff.Effect.Name}] RefreshPower");
+            eff.Magnitude = modifiedPower.Magnitude;
+            eff.Duration = (int)modifiedPower.Duration;
         }
 
         /// <summary>
@@ -152,11 +162,7 @@ namespace SpellChargingPlugin.Core
         /// <param name="eff"></param>
         private void ApplyModActiveEffects(EffectItem eff, EffectPower modifiedPower)
         {
-            // PeakValueMod spells (like Oakflesh) don't behave properly when updated in this manner
-            if (eff.Effect.Archetype == Archetypes.PeakValueMod)
-                return;
-
-            DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] RefreshActiveEffects");
+            //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] RefreshActiveEffects");
             // Get all the actors affected by this effect
             var myFID = eff.Effect.FormId;
             var myActiveEffects = ActiveEffectTracker.Instance
@@ -171,34 +177,33 @@ namespace SpellChargingPlugin.Core
             // Set Magnitude and call CalculateDurationAndMagnitude for each affected actor
             foreach (var victim in myActiveEffects)
             {
-                if (MemoryObject.FromAddress<ActiveEffect>(victim.Effect) is ActiveEffect)
+                try
                 {
-                    DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
+                    if (MemoryObject.FromAddress<ActiveEffect>(victim.Effect) is ActiveEffect activeEffect)
+                    {
+                        DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
 
-                    victim.Magnitude = modifiedPower.Magnitude;
-                    Memory.InvokeCdecl(
-                        Util.addr_CalculateDurationAndMagnitude,    //void __fastcall sub(
-                        victim.Effect,                              //  ActiveEffect * a1, 
-                        victim.Offender,                            //  Character * a2, 
-                        victim.Me);                                 //  MagicTarget * a3);
+                        victim.Magnitude = modifiedPower.Magnitude;
+                        victim.Duration = modifiedPower.Duration;
+
+                        Memory.InvokeCdecl(
+                            Util.addr_CalculateDurationAndMagnitude,    //void __fastcall sub(
+                            victim.Effect,                              //  ActiveEffect * a1, 
+                            victim.Offender,                            //  Character * a2, 
+                            victim.Me);                                 //  MagicTarget * a3);
+                    }
+                    else
+                    {
+                        DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] Invalid ActiveEffect pointer {victim.Effect.ToHexString()}!");
+                        victim.Invalid = true;
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] Invalid ActiveEffect pointer {victim.Effect.ToHexString()}!");
+                    DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] THREW EXCEPTION! {ex.Message}");
                     victim.Invalid = true;
                 }
             }
-        }
-
-        /// <summary>
-        /// Adjust Magnitude OR Duration according to Growth and Multiplier
-        /// </summary>
-        /// <param name="eff"></param>
-        private void ApplyModPower(EffectItem eff, EffectPower modifiedPower)
-        {
-            //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}:{eff.Effect.Name}] RefreshPower");
-            eff.Magnitude = modifiedPower.Magnitude;
-            eff.Duration = (int)modifiedPower.Duration;
         }
     }
 }

@@ -92,7 +92,7 @@ namespace SpellChargingPlugin
             public static void DetachArtObject(uint formID, Character target)
             {
                 var art = TESForm.LookupFormById(formID) as BGSArtObject;
-                if (art == null)
+                if (art == null || target == null)
                     return;
                 var func = new IntPtr(0x1406DDA30).FromBase();
                 Memory.InvokeCdecl(func,                                    // int32 __fastcall sub(void* a1, Character*a2, BGSArtObject* a3)

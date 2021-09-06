@@ -3,12 +3,7 @@ using NetScriptFramework.SkyrimSE;
 using NetScriptFramework.Tools;
 using SpellChargingPlugin.Core;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static NetScriptFramework.SkyrimSE.ActiveEffect;
 
 namespace SpellChargingPlugin
 {
@@ -19,12 +14,13 @@ namespace SpellChargingPlugin
         public override string Author => "m3ttwur5t";
         public override int Version => 1;
 
-        private NetScriptFramework.Tools.Timer _gameActiveTimer = null;
-        private long? _lastOnFrameTime = null;
-        private float _fUpdatesPerSecond = 1.0f / Settings.Instance.UpdatesPerSecond;
+        private static Timer _gameActiveTimer = null;
+        private static long? _lastOnFrameTime = null;
+        private static float _timePerUpdate = 1.0f / Math.Max(Settings.Instance.UpdatesPerSecond, 1);
 
-        private Core.ChargingActor _chargingPlayer;
-        private Util.SimpleTimer _simpleTimer = new Util.SimpleTimer();
+        private static ChargingActor _chargingPlayer;
+        private static Util.SimpleTimer _actorUpdateControlTimer = new Util.SimpleTimer();
+        private static Util.SimpleTimer _activeEffectPurgeControlTimer = new Util.SimpleTimer();
 
         /// <summary>
         /// NetFramework entry
@@ -38,18 +34,18 @@ namespace SpellChargingPlugin
             return true;
         }
 
-        private void SetLogFile()
+        private static void SetLogFile()
         {
-            var logFile = new NetScriptFramework.Tools.LogFile("SpellChargingPlugin", NetScriptFramework.Tools.LogFileFlags.AutoFlush | NetScriptFramework.Tools.LogFileFlags.IncludeTimestampInLine);
+            var logFile = new LogFile("SpellChargingPlugin", LogFileFlags.AutoFlush | LogFileFlags.IncludeTimestampInLine);
             DebugHelper.SetLogFile(logFile);
         }
 
         /// <summary>
         /// Register for OnFrame to avoid any lag and make sure things are taken care of asap
         /// </summary>
-        private void HookAndRegister()
+        private static void HookAndRegister()
         {
-            _gameActiveTimer = new NetScriptFramework.Tools.Timer();
+            _gameActiveTimer = new Timer();
             _gameActiveTimer.Start();
 
             Events.OnFrame.Register(e =>
@@ -65,6 +61,11 @@ namespace SpellChargingPlugin
             Hook_ActiveEffect_CalculateDurationAndMagnitude();
         }
 
+        /// <summary>
+        /// I assume this method gets called by the game whenever an actor (or object?) receives an ActiveEffect of some kind.
+        /// Except for some reason the ActiveEffect CX points to randomly turns into PathingTaskData sometimes???
+        /// May also just be NETFramework spazzing out, I dunno.
+        /// </summary>
         private static void Hook_ActiveEffect_CalculateDurationAndMagnitude()
         {
             Memory.WriteHook(new HookParameters()
@@ -82,10 +83,16 @@ namespace SpellChargingPlugin
                     if (activeEffect == null)
                         return;
 
+                    // May not be the best place to put
+                    if (_activeEffectPurgeControlTimer.HasElapsed(1.0f, out var _))
+                        ActiveEffectTracker.Instance.PurgeInvalids();
+
                     //float elapsed = Memory.ReadFloat(activeEffectPtr + 0x70);
                     //float duration = Memory.ReadFloat(activeEffectPtr + 0x74);
                     float magnitude = Memory.ReadFloat(activeEffectPtr + 0x78);
 
+                    // If there's none, the ActiveEffect is being freshly applied, so no need to update.
+                    // If there's more than one, something's fucked up.
                     var tracked = ActiveEffectTracker.Instance
                         .Tracked(activeEffectPtr)
                         .FromOffender(offenderPtr)
@@ -95,39 +102,48 @@ namespace SpellChargingPlugin
                     {
                         ActiveEffectTracker.Instance
                             .Track(activeEffectPtr)
-                            .From(offenderPtr)
-                            .For(victimPtr)
-                            .WithEffect(activeEffectPtr)
-                            .WithMagnitude(magnitude)
-                            .WithBaseEffectFormID(activeEffect.EffectData.Effect.FormId);
+                            .FromOffender(offenderPtr)
+                            .ForVictim(victimPtr)
+                            .WithActiveEffect(activeEffectPtr)
+                            .WithBaseEffectID(activeEffect.EffectData.Effect.FormId);
                         return;
                     }
 
-                    DebugHelper.Print($"[SpellCharging] Tracked actor MATCH: {tracked.Me.ToHexString()}");
+                    //DebugHelper.Print($"[SpellCharging] Tracked actor MATCH: {tracked.Me.ToHexString()}");
 
                     // Damaging spells, despite having a positive magnitute, apparently switch to negative magnitudes on their effects?
-                    // Makes sense for "valuemodifier" types, I guess
+                    // Makes sense for "valuemodifier" types, I guess. This approach misbehaves sometimes.
                     if (magnitude < 0f)
                         tracked.Sign = -1;
                     Memory.WriteFloat(activeEffectPtr + 0x78, tracked.Magnitude * tracked.Sign, true);
+                    Memory.WriteFloat(activeEffectPtr + 0x74, tracked.Duration, true);
+
+                    //DebugHelper.Print($"Updated ActiveEffect {activeEffectPtr.ToHexString()} MAG: {Memory.ReadFloat(activeEffectPtr + 0x78)} DUR: {Memory.ReadFloat(activeEffectPtr + 0x74)}");
                 }
             });
         }
 
-        private void Update(float elapsedSeconds)
+        protected override void Shutdown()
         {
-            // Without this check, spell charging would work while you are inside menus (without SkySouls or other un-pauser plugins)
+            _chargingPlayer?.CleanUp();
+            base.Shutdown();
+        }
+
+        private static void Update(float elapsedSeconds)
+        {
+            // Without this check, spell charging would continue while you are inside menus (without SkySouls or other un-pauser plugins)
             var main = NetScriptFramework.SkyrimSE.Main.Instance;
             if (main?.IsGamePaused != false)
                 return;
 
-            _simpleTimer.Update(elapsedSeconds);
+            _actorUpdateControlTimer.Update(elapsedSeconds);
+            _activeEffectPurgeControlTimer.Update(elapsedSeconds);
 
-             if(_chargingPlayer == null)
-                _chargingPlayer = new Core.ChargingActor(PlayerCharacter.Instance);
+            if (_chargingPlayer == null)
+                _chargingPlayer = new ChargingActor(PlayerCharacter.Instance);
 
-            if (_simpleTimer.HasElapsed(_fUpdatesPerSecond, out var exact))
-                _chargingPlayer.Update(exact);
+            if (_actorUpdateControlTimer.HasElapsed(_timePerUpdate, out var elapsed))
+                _chargingPlayer.Update(elapsed);
         }
     }
 }

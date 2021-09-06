@@ -37,27 +37,44 @@ namespace SpellChargingPlugin
         }
 
         /// <summary>
+        /// See if the spell's FIRST effect has a magnitude. Usually the first effect is the spell's defining effect, so this should be enough.
+        /// </summary>
+        /// <param name="spell"></param>
+        /// <returns></returns>
+        internal static bool HasMagnitude(SpellItem spell)
+        {
+            return spell.Effects.FirstOrDefault()?.Magnitude > 0f;
+        }
+
+        /// <summary>
+        /// See if the spell's FIRST effect has a duration. Usually the first effect is the spell's defining effect, so this should be enough.
+        /// </summary>
+        /// <param name="spell"></param>
+        /// <returns></returns>
+        internal static bool HasDuration(SpellItem spell)
+        {
+            return spell.Effects.FirstOrDefault()?.Duration > 0f;
+        }
+
+        /// <summary>
         /// Get the BASE Magniture and/or Durations for the given Effect
         /// </summary>
         /// <param name="effectItem"></param>
         /// <returns>EffectPower</returns>
         public static EffectPower GetBasePower(EffectItem effectItem)
         {
-            if (!_baseEffectPowers.ContainsKey(effectItem))
-                _baseEffectPowers.Add(
-                    effectItem,
-                    new EffectPower()
-                    {
-                        Magnitude = effectItem.Magnitude,
-                        Duration = effectItem.Duration,
-                        Area = effectItem.Area,
-                        Speed = effectItem.Effect.MagicProjectile?.ProjectileData?.Speed,
-                        ExplosionRadius = effectItem.Effect.Explosion?.ExplosionData?.Radius,
-                        CollisionRadius = effectItem.Effect.MagicProjectile?.ProjectileData?.CollisionRadius,
-                        ConeSpread = effectItem.Effect.MagicProjectile?.ProjectileData?.ConeSpread,
-                    });
-
-            return _baseEffectPowers[effectItem];
+            if(!_baseEffectPowers.TryGetValue(effectItem, out var ret))
+                _baseEffectPowers.Add(effectItem, ret = new EffectPower()
+                {
+                    Magnitude       = effectItem.Magnitude,
+                    Duration        = effectItem.Duration,
+                    Area            = effectItem.Area,
+                    Speed           = effectItem.Effect.MagicProjectile?.ProjectileData?.Speed,
+                    ExplosionRadius = effectItem.Effect.Explosion?.ExplosionData?.Radius,
+                    CollisionRadius = effectItem.Effect.MagicProjectile?.ProjectileData?.CollisionRadius,
+                    ConeSpread      = effectItem.Effect.MagicProjectile?.ProjectileData?.ConeSpread,
+                });
+            return ret;
         }
 
         /// <summary>
@@ -70,13 +87,13 @@ namespace SpellChargingPlugin
             if (!_modifiedPowers.TryGetValue(eff, out var mod))
                 _modifiedPowers.Add(eff, mod = new EffectPower()
                 {
-                    Magnitude = eff.Magnitude,
-                    Duration = eff.Duration,
-                    Area = eff.Area,
-                    Speed = eff.Effect.MagicProjectile?.ProjectileData?.Speed,
+                    Magnitude       = eff.Magnitude,
+                    Duration        = eff.Duration,
+                    Area            = eff.Area,
+                    Speed           = eff.Effect.MagicProjectile?.ProjectileData?.Speed,
                     ExplosionRadius = eff.Effect.Explosion?.ExplosionData?.Radius,
                     CollisionRadius = eff.Effect.MagicProjectile?.ProjectileData?.CollisionRadius,
-                    ConeSpread = eff.Effect.MagicProjectile?.ProjectileData?.ConeSpread,
+                    ConeSpread      = eff.Effect.MagicProjectile?.ProjectileData?.ConeSpread,
                 });
             return mod;
         }
@@ -124,6 +141,8 @@ namespace SpellChargingPlugin
             }
         }
 
+        
+
         /// <summary>
         /// Holds temporary spell power
         /// </summary>
@@ -139,6 +158,7 @@ namespace SpellChargingPlugin
 
             public void ResetTo(EffectPower basePower)
             {
+                DebugHelper.Print($"[EffectPower:{GetHashCode()}] Reset to base {basePower.GetHashCode()}");
                 Magnitude       = basePower.Magnitude;
                 Duration        = basePower.Duration;
                 Area            = basePower.Area;

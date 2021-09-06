@@ -12,48 +12,26 @@ namespace SpellChargingPlugin.StateMachine.States
 {
     public class Idle : State<ChargingSpell>
     {
-        private bool _needsReset = false;
-
         public Idle(ChargingSpell context) : base(context)
         {
         }
 
         protected override void OnUpdate(float elapsedSeconds)
         {
-            // TODO: move reset & cleanup to separate behavior or something
             var handState = SpellHelper.GetSpellAndState(_context.Holder.Actor, _context.Slot);
             if (handState == null)
-            {
-                if (_needsReset) { _context.ResetAndClean(); _needsReset = false; }
                 return;
-            }
-            if(_needsReset && _timeInState > 5f)
-            {
-                DebugHelper.Print($"[State.Idle] state auto-cleanup {_context.Spell.Name}");
-                _context.ResetAndClean();
-                _needsReset = false;
-            }
             switch (handState.Value.State)
             {
-                case MagicCastingStates.Charged:
                 case MagicCastingStates.Concentrating:
-                    if (!Settings.Instance.AllowConcentrationSpells && handState.Value.State == MagicCastingStates.Concentrating)
+                    if (!Settings.Instance.AllowConcentrationSpells)
                         break;
-                    
-                    if (_needsReset)
-                    {
-                        _context.ResetAndClean();
-                        _needsReset = false;
-                    }
+                    goto case MagicCastingStates.Charged;
+                case MagicCastingStates.Charged:
+                    _context.ResetAndClean();
                     TransitionTo(() => new Charging(_context));
                     break;
             }
-        }
-
-        protected override void OnEnterState()
-        {
-            _needsReset = true;
-            base.OnEnterState();
         }
     }
 }

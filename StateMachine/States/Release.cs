@@ -16,6 +16,7 @@ namespace SpellChargingPlugin.StateMachine.States
 
         protected override void OnUpdate(float elapsedSeconds)
         {
+            // Task.Run(async () => { await Task.Delay(3000); _context.ResetAndClean(); });
             TransitionTo(() => new Idle(_context));
         }
     }

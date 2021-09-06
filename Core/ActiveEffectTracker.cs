@@ -1,5 +1,7 @@
-﻿using System;
+﻿using NetScriptFramework;
+using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -14,8 +16,8 @@ namespace SpellChargingPlugin.Core
         private static ActiveEffectTracker _instance;
         public static ActiveEffectTracker Instance => _instance ?? (_instance = new ActiveEffectTracker());
 
-        private Dictionary<IntPtr, HashSet<ActiveEffectHolder>> _trackedEffects = new Dictionary<IntPtr, HashSet<ActiveEffectHolder>>();
-        private ActiveEffectTracker(){}
+        private ConcurrentDictionary<IntPtr, HashSet<ActiveEffectHolder>> _trackedEffects = new ConcurrentDictionary<IntPtr, HashSet<ActiveEffectHolder>>();
+        private ActiveEffectTracker() { }
 
         public TrackingResult Tracked(IntPtr activeEffectPtr)
         {
@@ -26,18 +28,29 @@ namespace SpellChargingPlugin.Core
         }
         public TrackingResult Tracked()
         {
-            return new TrackingResult( _trackedEffects.SelectMany(kv => kv.Value) );
+            return new TrackingResult(_trackedEffects.SelectMany(kv => kv.Value));
         }
         public TrackingSetup Track(IntPtr activeEffectPtr)
         {
-            if (false == _trackedEffects.ContainsKey(activeEffectPtr))
-                _trackedEffects.Add(activeEffectPtr, new HashSet<ActiveEffectHolder>());
-            return new TrackingSetup(_trackedEffects[activeEffectPtr]);
+            if (!_trackedEffects.TryGetValue(activeEffectPtr, out var ret))
+                if (!_trackedEffects.TryAdd(activeEffectPtr, ret = new HashSet<ActiveEffectHolder>()))
+                    throw new Exception($"[ActiveEffectTracker] Failed to track entry! {activeEffectPtr.ToHexString()}");
+            return new TrackingSetup(ret);
         }
         public void Clear()
         {
             DebugHelper.Print($"[ActiveEffectTracker] Clearing");
             _trackedEffects.Clear();
+        }
+
+        public void PurgeInvalids()
+        {
+            var iv = _trackedEffects.SelectMany(kv => kv.Value).Where(v => v.Invalid).ToArray();
+            foreach (var item in iv)
+            {
+                DebugHelper.Print($"[ActiveEffectTracker] Purging invalid entry {item.Effect.ToHexString()}");
+                _trackedEffects.TryRemove(item.Effect,out var _);
+            }
         }
 
 
@@ -86,36 +99,31 @@ namespace SpellChargingPlugin.Core
                 currentVictims.Add(_entry);
             }
 
-            public TrackingSetup From(IntPtr offenderPtr)
+            public TrackingSetup FromOffender(IntPtr offenderPtr)
             {
                 _entry.Offender = offenderPtr;
                 return this;
             }
 
-            public TrackingSetup For(IntPtr victimPtr)
+            public TrackingSetup ForVictim(IntPtr victimPtr)
             {
                 _entry.Me = victimPtr;
                 return this;
             }
 
-            public TrackingSetup WithMagnitude(float magnitude)
-            {
-                _entry.Magnitude = magnitude;
-                return this;
-            }
-
-            public TrackingSetup WithBaseEffectFormID(uint formId)
+            public TrackingSetup WithBaseEffectID(uint formId)
             {
                 _entry.BaseEffectID = formId;
                 return this;
             }
 
-            public TrackingSetup WithEffect(IntPtr activeEffect)
+            public TrackingSetup WithActiveEffect(IntPtr activeEffect)
             {
                 _entry.Effect = activeEffect;
                 return this;
             }
         }
+
         public sealed class ActiveEffectHolder
         {
             public IntPtr Effect { get; set; }
@@ -123,6 +131,7 @@ namespace SpellChargingPlugin.Core
             public IntPtr Offender { get; set; }
             public float Magnitude { get; set; }
             public int Sign { get; set; } = 1;
+            public float Duration { get; set; }
             public uint BaseEffectID { get; set; }
             public bool Invalid { get; internal set; }
         }

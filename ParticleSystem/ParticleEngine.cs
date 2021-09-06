@@ -17,7 +17,7 @@ namespace SpellChargingPlugin.ParticleSystem
 
         private HashSet<Particle> _activeParticles = new HashSet<Particle>();
         private uint _maxParticles;
-        private Util.SimpleTimer _sTimer = new Util.SimpleTimer();
+        private Util.SimpleTimer _cleanUpTimer = new Util.SimpleTimer();
 
         private ParticleEngine() { }
         public static ParticleEngine Create(uint maxParticles)
@@ -36,8 +36,7 @@ namespace SpellChargingPlugin.ParticleSystem
                 item.Dispose();
             }
             _activeParticles.Clear();
-            if (GlobalParticleCount != 0)
-                DebugHelper.Print($"[ParticleEngine] Not all particles reset?");
+            DebugHelper.Print($"[ParticleEngine:{GetHashCode()}] Cleared. {GlobalParticleCount} active particles remain.");
         }
 
         public void Add(Particle newParticle)
@@ -46,7 +45,7 @@ namespace SpellChargingPlugin.ParticleSystem
                 return;
             _activeParticles.Add(newParticle);
             ++GlobalParticleCount;
-            if (GlobalParticleCount % 50 == 0)
+            if (GlobalParticleCount % 25 == 0)
                 DebugHelper.Print($"[ParticleEngine] Total particles: {GlobalParticleCount}");
         }
 
@@ -55,7 +54,7 @@ namespace SpellChargingPlugin.ParticleSystem
             if (_activeParticles.Count == 0)
                 return;
 
-            _sTimer.Update(elapsedSeconds);
+            _cleanUpTimer.Update(elapsedSeconds);
 
             foreach (var item in _activeParticles.Where(p => !p.Delete))
             {
@@ -63,9 +62,8 @@ namespace SpellChargingPlugin.ParticleSystem
                 if (item.Delete)
                     item.Dispose();
             }
-
             // This really doesn't need to happen all that often, I think
-            if(_sTimer.HasElapsed(0.33f, out _))
+            if (_cleanUpTimer.HasElapsed(0.5f, out _))
                 _activeParticles.RemoveWhere(e => e.Delete);
         }
     }
