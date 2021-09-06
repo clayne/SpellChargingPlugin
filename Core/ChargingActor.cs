@@ -29,7 +29,7 @@ namespace SpellChargingPlugin.Core
         public ChargingActor(Character character)
         {
             Actor = character;
-            CleanUp();
+            CleanArtObj();
             Register();
 
             if (!Enum.TryParse<OperationMode>(Settings.Instance.OperationMode, out var mode))
@@ -40,11 +40,8 @@ namespace SpellChargingPlugin.Core
         /// <summary>
         /// Remove sticky ArtObject
         /// </summary>
-        public void CleanUp()
+        public void CleanArtObj()
         {
-            Util.Visuals.DetachArtObject(0xE7559, Actor); // bane undead (from an old version)
-            Util.Visuals.DetachArtObject(0x56AC8, Actor); // ShieldSpellFX
-
             foreach (var fid in _modeArtObjects)
                 Util.Visuals.DetachArtObject(fid.Value, Actor);
         }
@@ -84,10 +81,10 @@ namespace SpellChargingPlugin.Core
         private void RotateOperationMode()
         {
             int cur = (int)Mode;
-            int next = (++cur) % 3;
+            int next = (cur + 1) % 3;
             OperationMode nextMode = (OperationMode)next;
             // only toggle between MAG and DUR while charging
-            if (nextMode == OperationMode.Disabled && (_chargingSpellLeft?.CurrentState is StateMachine.States.Charging || _chargingSpellRight.CurrentState is StateMachine.States.Charging))
+            if (nextMode == OperationMode.Disabled && (_chargingSpellLeft?.CurrentState is StateMachine.States.Charging || _chargingSpellRight?.CurrentState is StateMachine.States.Charging))
                 nextMode = OperationMode.Magnitude;
 
             SetOperationMode(nextMode);
@@ -98,7 +95,7 @@ namespace SpellChargingPlugin.Core
         /// </summary>
         private void SetOperationMode(OperationMode newMode)
         {
-            CleanUp();
+            CleanArtObj();
 
             MenuManager.ShowHUDMessage($"Overcharge : {newMode}", null, false);
 

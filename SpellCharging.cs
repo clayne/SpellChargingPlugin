@@ -125,7 +125,7 @@ namespace SpellChargingPlugin
 
         protected override void Shutdown()
         {
-            _chargingPlayer?.CleanUp();
+            _chargingPlayer?.CleanArtObj();
             base.Shutdown();
         }
 
