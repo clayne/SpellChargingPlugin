@@ -46,7 +46,7 @@ namespace SpellChargingPlugin.Core
         public void IncreasePower()
         {
             _needReset = true;
-            float adjustedGrowth = Growth * (0.5f / (float)Math.Log10(_managedSpell.ChargeLevel * _managedSpell.ChargeLevel + 1));
+            float adjustedGrowth = Growth / ((float)Math.Sqrt(_managedSpell.ChargeLevel) + 1f);
             foreach (var eff in _managedSpell.Spell.Effects)
             {
                 var basePower = GetBasePower(eff);
@@ -69,7 +69,7 @@ namespace SpellChargingPlugin.Core
                 }
 
                 mod.Area += basePower.Area * adjustedGrowth;
-                if (mod.CollisionRadius != null)
+                if (mod.CollisionRadius != null && mod.CollisionRadius < basePower.CollisionRadius * 3f) // cap at 3x to prevent fireballs from blowing up in your face
                     mod.CollisionRadius += basePower.CollisionRadius * adjustedGrowth;
                 if (mod.ConeSpread != null)
                     mod.ConeSpread += basePower.ConeSpread * adjustedGrowth;
@@ -79,15 +79,32 @@ namespace SpellChargingPlugin.Core
                     mod.Speed += basePower.Speed * adjustedGrowth;
                 if (mod.Range != null)
                     mod.Range += basePower.Range * adjustedGrowth;
+                if (mod.Force != null)
+                    mod.Force += basePower.Force * adjustedGrowth;
 
                 //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Eff: {eff.Effect.Name} Mod: {modifier}");
                 ApplyModPower(eff, mod);
                 ApplyModArea(eff, mod);
                 ApplyModSpeed(eff, mod);
                 ApplyModRange(eff, mod);
+                ApplyModForce(eff, mod);
 
                 if (_isConcentration)
                     ApplyModActiveEffects(eff, mod);
+            }
+        }
+
+        /// <summary>
+        /// Projectile force (stagger?)
+        /// </summary>
+        /// <param name="eff"></param>
+        /// <param name="mod"></param>
+        private void ApplyModForce(EffectItem eff, EffectPower mod)
+        {
+            if (mod.Force != null)
+            {
+                IntPtr fForcePtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x48;
+                Memory.WriteFloat(fForcePtr, mod.Force.Value);
             }
         }
 

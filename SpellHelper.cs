@@ -66,28 +66,30 @@ namespace SpellChargingPlugin
                     CollisionRadius = effectItem.Effect.MagicProjectile?.ProjectileData?.CollisionRadius,
                     ConeSpread      = effectItem.Effect.MagicProjectile?.ProjectileData?.ConeSpread,
                     Range           = effectItem.Effect.MagicProjectile?.ProjectileData?.Range,
+                    Force           = effectItem.Effect.MagicProjectile?.ProjectileData?.Force,
                 });
             return ret;
         }
 
         /// <summary>
-        /// Returns the MODIFIED (base + bonus) effect power
+        /// Returns the MODIFIED (base + bonus) effect power for this effect
         /// </summary>
-        /// <param name="eff"></param>
+        /// <param name="effectItem"></param>
         /// <returns></returns>
-        public static EffectPower GetModifiedPower(EffectItem eff)
+        public static EffectPower GetModifiedPower(EffectItem effectItem)
         {
-            if (!_modifiedPowers.TryGetValue(eff, out var mod))
-                _modifiedPowers.Add(eff, mod = new EffectPower()
+            if (!_modifiedPowers.TryGetValue(effectItem, out var mod))
+                _modifiedPowers.Add(effectItem, mod = new EffectPower()
                 {
-                    Magnitude       = eff.Magnitude,
-                    Duration        = eff.Duration,
-                    Area            = eff.Area,
-                    Speed           = eff.Effect.MagicProjectile?.ProjectileData?.Speed,
-                    ExplosionRadius = eff.Effect.Explosion?.ExplosionData?.Radius,
-                    CollisionRadius = eff.Effect.MagicProjectile?.ProjectileData?.CollisionRadius,
-                    ConeSpread      = eff.Effect.MagicProjectile?.ProjectileData?.ConeSpread,
-                    Range           = eff.Effect.MagicProjectile?.ProjectileData?.Range,
+                    Magnitude       = effectItem.Magnitude,
+                    Duration        = effectItem.Duration,
+                    Area            = effectItem.Area,
+                    Speed           = effectItem.Effect.MagicProjectile?.ProjectileData?.Speed,
+                    ExplosionRadius = effectItem.Effect.Explosion?.ExplosionData?.Radius,
+                    CollisionRadius = effectItem.Effect.MagicProjectile?.ProjectileData?.CollisionRadius,
+                    ConeSpread      = effectItem.Effect.MagicProjectile?.ProjectileData?.ConeSpread,
+                    Range           = effectItem.Effect.MagicProjectile?.ProjectileData?.Range,
+                    Force           = effectItem.Effect.MagicProjectile?.ProjectileData?.Force,
                 });
             return mod;
         }
@@ -150,6 +152,7 @@ namespace SpellChargingPlugin
             public float? CollisionRadius;
             public float? ConeSpread;
             public float? Range;
+            public float? Force;
 
             public void ResetTo(EffectPower basePower)
             {
@@ -162,6 +165,7 @@ namespace SpellChargingPlugin
                 DebugHelper.Print($"\tCollisionRadius [{CollisionRadius}] -> [{basePower.CollisionRadius}].");
                 DebugHelper.Print($"\tConeSpread      [{ConeSpread     }] -> [{basePower.ConeSpread     }].");
                 DebugHelper.Print($"\tRange           [{Range          }] -> [{basePower.Range          }].");
+                DebugHelper.Print($"\tImpactForce      [{Force    }] -> [{basePower.Force    }].");
                 DebugHelper.Print($"---\t---\t---");
                 Magnitude       = basePower.Magnitude;
                 Duration        = basePower.Duration;
@@ -171,6 +175,7 @@ namespace SpellChargingPlugin
                 CollisionRadius = basePower.CollisionRadius;
                 ConeSpread      = basePower.ConeSpread;
                 Range           = basePower.Range;
+                Force     = basePower.Force;
             }
         }
     }
