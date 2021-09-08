@@ -91,7 +91,7 @@ namespace SpellChargingPlugin
             "After charging for this long (in second), charging speed will double.\n" +
             "The acceleration is gradual and scales beyond this time.")]
         public float AccelerationHalfTime { get; internal set; }
-            = 3f;
+            = 5f;
 
         [ConfigValue("UpdatesPerSecond", "Updates Per Second", 
             "Performance setting. Controls how often the plugin updates its state.\n" +
