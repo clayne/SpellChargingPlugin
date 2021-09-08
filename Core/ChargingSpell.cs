@@ -35,7 +35,7 @@ namespace SpellChargingPlugin.Core
 
         public ChargingSpell(ChargingActor holder, SpellItem spell, EquippedSpellSlots slot)
         {
-            DebugHelper.Print($"[ChargingSpell] {spell.Name} Initializing");
+            //DebugHelper.Print($"[ChargingSpell] {spell.Name} Initializing");
 
             Holder = holder;
             Spell = spell;
@@ -49,7 +49,7 @@ namespace SpellChargingPlugin.Core
 
             RefreshParticleNode();
 
-            DebugHelper.Print($"[ChargingSpell] Create Spell Power Manager");
+            //DebugHelper.Print($"[ChargingSpell] Create Spell Power Manager");
             _spellPowerManager = SpellPowerManager.Create(this);
             _spellPowerManager.Growth = Settings.Instance.PowerPerCharge / 100f;
 
@@ -73,7 +73,7 @@ namespace SpellChargingPlugin.Core
                 .Where(s => string.IsNullOrEmpty(s) == false);
             }).Distinct().Take((int)Settings.Instance.ParticleLayers).Select(nif => Particle.Create(nif)).ToList();
 
-            DebugHelper.Print($"[ChargingSpell] Create Particle Engine");
+            //DebugHelper.Print($"[ChargingSpell] Create Particle Engine");
             _particleEngine = ParticleEngine.Create(Settings.Instance.MaxParticles);
 
             DebugHelper.Print($"[ChargingSpell] Enter Idle State");
@@ -153,9 +153,9 @@ namespace SpellChargingPlugin.Core
             int localParticleCount = (int)(chargeLevel / Settings.Instance.ChargesPerParticle);
             int distanceFactor = (int)Math.Sqrt(localParticleCount);
 
-            float r1 = (10f + Randomizer.NextInt(distanceFactor, (distanceFactor * 4) / 3)) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r2 = (10f + Randomizer.NextInt(distanceFactor, (distanceFactor * 4) / 3)) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r3 = (10f + Randomizer.NextInt(distanceFactor, (distanceFactor * 4) / 3)) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r1 = (5f + 2f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r2 = (5f + 2f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r3 = (5f + 2f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
 
             if (IsTwoHanded)
             {
@@ -168,7 +168,7 @@ namespace SpellChargingPlugin.Core
             int a2 = Randomizer.NextInt(-1, 1);
             int a3 = a1 == 0 && a2 == 0 ? 1 : Randomizer.NextInt(-1, 1);
 
-            var scale = Randomizer.NextInt(200, 500) * 0.001f;
+            var scale = Randomizer.NextInt(333, 666) * 0.001f * Settings.Instance.ParticleScale;
             var fade = 0.5f;
 
             var translate = new Vector3D(r1, r2, r3 * 0.8f);

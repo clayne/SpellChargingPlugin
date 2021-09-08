@@ -69,6 +69,11 @@ namespace SpellChargingPlugin
                     _elapsedSeconds = 0.0f;
                 return true;
             }
+
+            internal bool HasElapsed(object preChargeDelay, out float _)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public static class Visuals
@@ -76,7 +81,7 @@ namespace SpellChargingPlugin
             public static void AttachArtObject(uint formID, Character target, float duration = -1)
             {
                 var art = TESForm.LookupFormById(formID) as BGSArtObject;
-                if (art == null)
+                if (art == null || target == null)
                     return;
                 Memory.InvokeCdecl(
                     new IntPtr(0x14030F9A0).FromBase(), // int32 __fastcall sub(Character* a1, BGSArtObject* a2, int64 a3, Character* a4, int64 a5, uint8 a6, int64 a7, uint8 a8)

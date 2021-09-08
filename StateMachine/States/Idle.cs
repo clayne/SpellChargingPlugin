@@ -12,6 +12,7 @@ namespace SpellChargingPlugin.StateMachine.States
 {
     public class Idle : State<ChargingSpell>
     {
+        private Util.SimpleTimer _preChargeControlTimer = new Util.SimpleTimer();
         public Idle(ChargingSpell context) : base(context)
         {
         }
@@ -29,6 +30,9 @@ namespace SpellChargingPlugin.StateMachine.States
                     goto case MagicCastingStates.Charged;
                 case MagicCastingStates.Charged:
                     _context.ResetAndClean();
+                    _preChargeControlTimer.Update(elapsedSeconds);
+                    if (!_preChargeControlTimer.HasElapsed(Settings.Instance.PreChargeDelay, out _))
+                        return;
                     TransitionTo(() => new Charging(_context));
                     break;
             }

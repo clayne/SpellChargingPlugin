@@ -84,7 +84,7 @@ namespace SpellChargingPlugin
                         return;
 
                     // May not be the best place to put
-                    if (_activeEffectPurgeControlTimer.HasElapsed(1.0f, out var _))
+                    if (_activeEffectPurgeControlTimer.HasElapsed(5.0f, out var _))
                         ActiveEffectTracker.Instance.PurgeInvalids();
 
                     //float elapsed = Memory.ReadFloat(activeEffectPtr + 0x70);

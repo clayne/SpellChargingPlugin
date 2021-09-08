@@ -14,7 +14,7 @@ namespace SpellChargingPlugin.Core
         public enum OperationMode { Disabled, Magnitude, Duration }
         private Dictionary<OperationMode, uint> _modeArtObjects = new Dictionary<OperationMode, uint>
         {
-            { OperationMode.Disabled, Settings.Instance.ArtObjectDisabled },
+            { OperationMode.Disabled, 0x0 },
             { OperationMode.Magnitude, Settings.Instance.ArtObjectMagnitude },
             { OperationMode.Duration, Settings.Instance.ArtObjectDuration },
         };
@@ -29,7 +29,6 @@ namespace SpellChargingPlugin.Core
         public ChargingActor(Character character)
         {
             Actor = character;
-            CleanArtObj();
             Register();
 
             if (!Enum.TryParse<OperationMode>(Settings.Instance.OperationMode, out var mode))
@@ -118,9 +117,7 @@ namespace SpellChargingPlugin.Core
             HotkeyBase.UpdateAll();
             if (Mode == OperationMode.Disabled)
                 return;
-
             AssignSpellsIfNecessary();
-
             _chargingSpellLeft?.Update(elapsedSeconds);
             if (!_leftEqualsRight)
                 _chargingSpellRight?.Update(elapsedSeconds);
