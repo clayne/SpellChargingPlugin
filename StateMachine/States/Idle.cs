@@ -13,6 +13,7 @@ namespace SpellChargingPlugin.StateMachine.States
     public class Idle : State<ChargingSpell>
     {
         private Util.SimpleTimer _preChargeControlTimer = new Util.SimpleTimer();
+        private Util.SimpleTimer _stateResetControlTimer = new Util.SimpleTimer();
         public Idle(ChargingSpell context) : base(context)
         {
         }
@@ -22,6 +23,15 @@ namespace SpellChargingPlugin.StateMachine.States
             var handState = SpellHelper.GetSpellAndState(_context.Holder.Actor, _context.Slot);
             if (handState == null)
                 return;
+
+            _stateResetControlTimer.Update(elapsedSeconds);
+            if (_stateResetControlTimer.HasElapsed(Settings.Instance.AutoCleanupDelay, out _))
+            {
+                DebugHelper.Print($"[State.Idle:{_context.Spell.Name}] Auto cleanup.");
+                _context.ResetAndClean();
+                _stateResetControlTimer.Enabled = false;
+            }
+
             switch (handState.Value.State)
             {
                 case MagicCastingStates.Concentrating:

@@ -79,14 +79,19 @@ namespace SpellChargingPlugin.Core
 
         private void RotateOperationMode()
         {
-            int cur = (int)Mode;
-            int next = (cur + 1) % 3;
-            OperationMode nextMode = (OperationMode)next;
-            // only toggle between MAG and DUR while charging
-            if (nextMode == OperationMode.Disabled && (_chargingSpellLeft?.CurrentState is StateMachine.States.Charging || _chargingSpellRight?.CurrentState is StateMachine.States.Charging))
-                nextMode = OperationMode.Magnitude;
+            // simplified mode
+            if (Mode != OperationMode.Magnitude)
+                SetOperationMode(OperationMode.Magnitude);
+            else
+            SetOperationMode(OperationMode.Duration);
+            //int cur = (int)Mode;
+            //int next = (cur + 1) % 3;
+            //OperationMode nextMode = (OperationMode)next;
+            //// only toggle between MAG and DUR while charging
+            //if (nextMode == OperationMode.Disabled && (_chargingSpellLeft?.CurrentState is StateMachine.States.Charging || _chargingSpellRight?.CurrentState is StateMachine.States.Charging))
+            //    nextMode = OperationMode.Magnitude;
 
-            SetOperationMode(nextMode);
+            //SetOperationMode(nextMode);
         }
 
         /// <summary>
@@ -96,9 +101,9 @@ namespace SpellChargingPlugin.Core
         {
             CleanArtObj();
 
-            MenuManager.ShowHUDMessage($"Overcharge : {newMode}", null, false);
+            MenuManager.ShowHUDMessage($"Overcharge Priority : {newMode}", null, false);
 
-            Util.Visuals.AttachArtObject(_modeArtObjects[newMode], Actor);
+            Util.Visuals.AttachArtObject(_modeArtObjects[newMode], Actor, 2f);
             if (newMode == OperationMode.Disabled)
             {
                 ClearSpell(ref _chargingSpellLeft);

@@ -47,10 +47,14 @@ namespace SpellChargingPlugin
 
         public class SimpleTimer
         {
-            private float _elapsedSeconds;
+            private float _elapsedSeconds = 0f;
+
+            public bool Enabled { get; set; } = true;
 
             public void Update(float elapsedSeconds)
             {
+                if (!Enabled) 
+                    return;
                 _elapsedSeconds += elapsedSeconds;
             }
 
@@ -65,14 +69,9 @@ namespace SpellChargingPlugin
                 elapsed = _elapsedSeconds;
                 if (_elapsedSeconds < seconds)
                     return false;
-                if(reset) 
+                if (reset)
                     _elapsedSeconds = 0.0f;
                 return true;
-            }
-
-            internal bool HasElapsed(object preChargeDelay, out float _)
-            {
-                throw new NotImplementedException();
             }
         }
 

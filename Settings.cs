@@ -21,11 +21,13 @@ namespace SpellChargingPlugin
         }
         private Settings(){ }
 
-        [ConfigValue("OperationMode", "Default Mode", 
-            "By default, only a spell's magnitude (damage/healing/armor..) will be affected.\n" +
-            "Options: Magnitude, Duration, Disabled\nYou can also switch between them ingame by pressing the hotkey.\n" +
-            "Spells with no magnitude (like summons) will not be charged and won't consume magicka in Duration mode and vice versa.\n" +
-            "It is possible to switch modes while charging.")]
+        [ConfigValue("OperationMode", "Overcharge Priority", 
+            "When a spell has both a Magnitude and a Duration (most Illusion spells, Flesh spells, etc.), which of the two should be charged?\n" +
+            "Options: Magnitude, Duration\n" +
+            "You can also switch between them ingame by pressing the hotkey.\n" +
+            "If a spell does not have the prioritized attribute, charging will switch to the secondary.\n" +
+            "If a spell has neither, nothing will happen." +
+            "It is possible to switch priorities while in the middle of charging.")]
         public string OperationMode { get; internal set; }
             = "Magnitude";
 
@@ -35,36 +37,36 @@ namespace SpellChargingPlugin
             = "Shift + G";
 
         [ConfigValue("PreChargeDelay", "Pre-charge Delay",
-            "Time (in seconds) that a spell must be held before it starts charging.")]
+            "Time (in seconds) that a spell must be held before it begins overcharging.")]
         public float PreChargeDelay { get; internal set; }
             = 0.5f;
 
         [ConfigValue("PowerPerCharge", "Power Per Charge", 
             "One charge will raise power by this amount in percent.\n" +
-            "Recommended to set this and MagickaPerCharge to the same value in order to have spells gain 100% power for every 100 points of Magicka spent on charges. ")]
+            "The default values here and for MagickaPerCharge will result in 50% more spell power for every 100 points of Magicka spent on overcharging.")]
         public float PowerPerCharge { get; internal set; }
             = 10.0f;
-
-        [ConfigValue("SkillAffectsPower", "Skill affects Power", 
-            "Should your skill level further influence the power?\n" +
-            "If enabled and with PowerPerCharge set to 10, actual PowerPerCharge would be 20 at 100 skill level (+1% per skill level).")]
-        public bool SkillAffectsPower { get; internal set; }
-            = true;
 
         [ConfigValue("MagickaPerCharge", "Magicka Per Charge", 
             "How much Magicka does one charge cost? This is a flat value, not a percentage!")]
         public float MagickaPerCharge { get; internal set; }
             = 10f;
 
+        [ConfigValue("SkillAffectsPower", "Skill affects Power",
+            "Should your skill level in the spell's school further influence the power per charge?")]
+        public bool SkillAffectsPower { get; internal set; }
+            = true;
+
         [ConfigValue("ChargesPerSecond", "Charges Per Second", 
             "How many charges are gained per second of charging?\n" +
-            "Set to 0 to disable the particle system.")]
+            "Increasing this setting while decreasing the ones above will give a more granular gain in power at the cost of a tiny hit on performance and stability.")]
         public uint ChargesPerSecond { get; internal set; }
             = 5;
 
         [ConfigValue("ChargesPerParticle", "Charges Per Particle", 
             "Spawn a charge indicator particle every #N charges. Setting this to 1 would spawn a particle on every new charge.\n" +
-            "With the default settings, every particle would indicate that your spell has become 50% stronger.")]
+            "With the default settings, every particle would indicate that your spell has become 50% stronger.\n" +
+            "Set to 0 to disable the particle system and increase performance a little.")]
         public uint ChargesPerParticle { get; internal set; }
             = 5;
 
@@ -102,17 +104,20 @@ namespace SpellChargingPlugin
 
         [ConfigValue("ArtObjectMagnitude", "ArtObject for Magnitude", 
             "The FormID of the ARTO that gets attached when in 'Magnitude' overcharge mode. Set to 0 to disable.\n" +
-            "Note: This (default value) will produce a red glow when combined with ENB Light!\n" +
-            "Set to 0 to disable.", ConfigEntryFlags.PreferHex)]
+            "Set to 0 to disable the effect.", ConfigEntryFlags.PreferHex)]
         public uint ArtObjectMagnitude { get; internal set; }
             = 0x74795;
 
         [ConfigValue("ArtObjectDuration", "ArtObject for Duration", 
             "The FormID of the ARTO that gets attached when in 'Duration' overcharge mode.\n" +
-            "Note: This (default value) will produce a green glow when combined with ENB Light!\n" +
-            "Set to 0 to disable.", ConfigEntryFlags.PreferHex)]
+            "Set to 0 to disable the effect.", ConfigEntryFlags.PreferHex)]
         public uint ArtObjectDuration { get; internal set; }
             = 0x6DE86;
+
+        [ConfigValue("AutoCleanupDelay", "Auto-Cleanup Delay",
+            "Best to leave this alone.")]
+        public float AutoCleanupDelay { get; internal set; }
+            = 4.0f;
 
         [ConfigValue("EquipBothFormID", "EquipBoth FormID", 
             "Don't touch this.", ConfigEntryFlags.PreferHex | ConfigEntryFlags.Hidden)]

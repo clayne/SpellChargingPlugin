@@ -25,16 +25,7 @@ namespace SpellChargingPlugin
             if (spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration && spell.Effects.Any(e => e.Effect.Archetype == Archetypes.PeakValueMod))
                 return false;
 
-            bool hasMagnitudeSomewhere = false;
-            bool hasDurationSomewhere = false;
-            foreach (var eff in spell.Effects)
-            {
-                hasMagnitudeSomewhere = hasMagnitudeSomewhere || eff.Magnitude > 0f;
-                hasDurationSomewhere = hasDurationSomewhere || eff.Duration > 0;
-            }
-            if (spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration)
-                hasDurationSomewhere = false;
-            return hasMagnitudeSomewhere || hasDurationSomewhere;
+            return HasDuration(spell) || HasMagnitude(spell);
         }
 
         /// <summary>
@@ -44,17 +35,17 @@ namespace SpellChargingPlugin
         /// <returns></returns>
         internal static bool HasMagnitude(SpellItem spell)
         {
-            return spell.Effects.FirstOrDefault()?.Magnitude > 0f;
+            return spell.Effects.FirstOrDefault()?.Magnitude > 1f; // MAG > 1 to filter out scripted spells and other unwanted spells
         }
 
         /// <summary>
-        /// See if the spell's FIRST effect has a duration. Usually the first effect is the spell's defining effect, so this should be enough.
+        /// See if the spell's FIRST effect has a duration over a second (to exclude concentration effects). Usually the first effect is the spell's defining effect, so this should be enough.
         /// </summary>
         /// <param name="spell"></param>
         /// <returns></returns>
         internal static bool HasDuration(SpellItem spell)
         {
-            return spell.Effects.FirstOrDefault()?.Duration > 0f;
+            return spell.Effects.FirstOrDefault()?.Duration > 1; // DUR > 1 to filter out scripted spells and other unwanted spells (mainly concentration effects)
         }
 
         /// <summary>

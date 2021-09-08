@@ -130,12 +130,6 @@ namespace SpellChargingPlugin.Core
             if (!_chargingTimer.HasElapsed(_fChargesPerSecond, out _))
                 return;
 
-            // Don't waste mana when you can't charge the chosen property
-            if (Holder.Mode == ChargingActor.OperationMode.Duration && !SpellHelper.HasDuration(Spell))
-                return;
-            if (Holder.Mode == ChargingActor.OperationMode.Magnitude && !SpellHelper.HasMagnitude(Spell))
-                return;
-
             if (!TryDrainMagicka(Settings.Instance.MagickaPerCharge))
                 return;
             
@@ -153,9 +147,9 @@ namespace SpellChargingPlugin.Core
             int localParticleCount = (int)(chargeLevel / Settings.Instance.ChargesPerParticle);
             int distanceFactor = (int)Math.Sqrt(localParticleCount);
 
-            float r1 = (5f + 2f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r2 = (5f + 2f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r3 = (5f + 2f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r1 = (5f + 1.66f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r2 = (5f + 1.66f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r3 = (5f + 1.66f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
 
             if (IsTwoHanded)
             {
@@ -185,9 +179,9 @@ namespace SpellChargingPlugin.Core
                     .Translate(translate)
                     .AttachToNode(_particleParentNode);
 
-                newParticle.AddBehavior(new OrbitBehavior(newParticle, new Vector3D(), new Vector3D(a1, a2, a3), 2f));
+                newParticle.AddBehavior(new OrbitBehavior(newParticle, new Vector3D(), new Vector3D(a1, a2, a3), 1f));
                 newParticle.AddBehavior(new AimForwardBehavior(newParticle));
-                newParticle.AddBehavior(new BreatheBehavior(newParticle, 0.1f, 1f, 8f)
+                newParticle.AddBehavior(new BreatheBehavior(newParticle, 0.1f, 1f, 16f)
                 { Active = () => CurrentState is StateMachine.States.Charging });
                 newParticle.AddBehavior(new FadeBehavior(newParticle, 0.75f)
                 { Active = () => !(CurrentState is StateMachine.States.Charging) });

@@ -21,6 +21,8 @@ namespace SpellChargingPlugin.Core
 
         private ChargingSpell _managedSpell;
         private bool _isConcentration;
+        private bool _hasDuration, _hasMagnitude;
+        private bool _needReset = false;
 
         private SpellPowerManager() { }
         public static SpellPowerManager Create(ChargingSpell spell)
@@ -32,6 +34,8 @@ namespace SpellChargingPlugin.Core
             {
                 _managedSpell = spell,
                 _isConcentration = spell.Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration,
+                _hasDuration = SpellHelper.HasDuration(spell.Spell),
+                _hasMagnitude = SpellHelper.HasMagnitude(spell.Spell),
             };
             return ret;
         }
@@ -41,16 +45,28 @@ namespace SpellChargingPlugin.Core
         /// </summary>
         public void IncreasePower()
         {
+            _needReset = true;
             foreach (var eff in _managedSpell.Spell.Effects)
             {
                 var basePower = GetBasePower(eff);
                 EffectPower mod = GetModifiedPower(eff);
                 float adjustedGrowth = Growth / 10f;
 
-                if (_managedSpell.Holder.Mode == ChargingActor.OperationMode.Magnitude)
-                    mod.Magnitude += basePower.Magnitude * Growth;
-                else
-                    mod.Duration += basePower.Duration * Growth;
+                switch (_managedSpell.Holder.Mode)
+                {
+                    case ChargingActor.OperationMode.Magnitude:
+                        if (_hasMagnitude)
+                            mod.Magnitude += basePower.Magnitude * Growth;
+                        else if(_hasDuration)
+                            mod.Duration += basePower.Duration * Growth;
+                        break;
+                    case ChargingActor.OperationMode.Duration:
+                        if (_hasDuration)
+                            mod.Duration += basePower.Duration * Growth;
+                        else if (_hasMagnitude)
+                            mod.Magnitude += basePower.Magnitude * Growth;
+                        break;
+                }
 
                 mod.Area += basePower.Area * adjustedGrowth;
                 if (mod.CollisionRadius != null)
@@ -77,6 +93,8 @@ namespace SpellChargingPlugin.Core
         /// </summary>
         public void ResetPower()
         {
+            if (!_needReset)
+                return;
             foreach (var eff in _managedSpell.Spell.Effects)
             {
                 var mod = GetModifiedPower(eff);
@@ -85,6 +103,7 @@ namespace SpellChargingPlugin.Core
                 ApplyModArea(eff, mod);
                 ApplyModSpeed(eff, mod);
             }
+            _needReset = false;
         }
 
         /// <summary>
