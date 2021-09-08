@@ -43,7 +43,8 @@ namespace SpellChargingPlugin
 
         [ConfigValue("PowerPerCharge", "Power Per Charge", 
             "One charge will raise power by this amount in percent.\n" +
-            "The default values here and for MagickaPerCharge will result in 50% more spell power for every 100 points of Magicka spent on overcharging.")]
+            "The default values here and for MagickaPerCharge will result in 50% more spell power for every 100 points of Magicka spent on overcharging.\n" +
+            "Node: 'Spell Power' includes a spell's projectile speed, size, explosion radius and range (if it has any of those).")]
         public float PowerPerCharge { get; internal set; }
             = 5.0f;
 
@@ -61,14 +62,14 @@ namespace SpellChargingPlugin
             "How many charges are gained per second of charging?\n" +
             "Increasing this setting while decreasing the ones above will give a more granular gain in power at the cost of a tiny hit to performance and stability.")]
         public uint ChargesPerSecond { get; internal set; }
-            = 5;
+            = 3;
 
         [ConfigValue("ChargesPerParticle", "Charges Per Particle", 
             "Spawn a charge indicator particle every #N charges. Setting this to 1 would spawn a particle on every new charge.\n" +
-            "With the default settings, every particle would indicate that your spell has become 25% stronger.\n" +
-            "Set to 0 to disable the particle system and increase performance a little.")]
+            "Particle appearance depends on your mods (spell changes, custom spells etc). Some spells may not show any.\n" +
+            "Set to 0 to disable the particle system if you think it looks bad and to increase performance a little.")]
         public uint ChargesPerParticle { get; internal set; }
-            = 5;
+            = 3;
 
         [ConfigValue("ParticleScale", "Particle Scale", 
             "Make the particles larger (>1.0) or smaller (<1.0).")]
@@ -79,6 +80,18 @@ namespace SpellChargingPlugin
             "Apply Spell Charging to Concentration-Type spells?")]
         public bool AllowConcentrationSpells { get; internal set; }
            = true;
+
+        [ConfigValue("EnableAcceleration", "Enable Charge Acceleration",
+            "Speed up charging rate based on how long you've been charging already?\n" +
+            "For the impatient wizard.")]
+        public bool EnableAcceleration { get; internal set; }
+            = true;
+
+        [ConfigValue("AccelerationHalfTime", "Acceleration Halving Time",
+            "After charging for this long (in second), charging speed will double.\n" +
+            "The acceleration is gradual and scales beyond this time.")]
+        public float AccelerationHalfTime { get; internal set; }
+            = 3f;
 
         [ConfigValue("UpdatesPerSecond", "Updates Per Second", 
             "Performance setting. Controls how often the plugin updates its state.\n" +

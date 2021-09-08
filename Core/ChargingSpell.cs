@@ -67,8 +67,8 @@ namespace SpellChargingPlugin.Core
                 return new List<string>()
                 {
                     eff.Effect?.CastingArt?.ModelName?.Text,       // this usually works best, but some spells have bad or no (visible) casting art
-                    eff.Effect?.MagicProjectile?.ModelName?.Text,  // may look stupid with some spells
                     eff.Effect?.HitEffectArt?.ModelName?.Text,     // probably looks dumb
+                    eff.Effect?.MagicProjectile?.ModelName?.Text,  // may look stupid with some spells
                 }
                 .Where(s => string.IsNullOrEmpty(s) == false);
             }).Distinct().Take((int)Settings.Instance.ParticleLayers).Select(nif => Particle.Create(nif)).ToList();
@@ -162,7 +162,7 @@ namespace SpellChargingPlugin.Core
             int a2 = Randomizer.NextInt(-1, 1);
             int a3 = a1 == 0 && a2 == 0 ? 1 : Randomizer.NextInt(-1, 1);
 
-            var scale = Randomizer.NextInt(333, 666) * 0.001f * Settings.Instance.ParticleScale;
+            var scale = Randomizer.NextInt(225, 450) * 0.001f * Settings.Instance.ParticleScale;
             var fade = 0.5f;
 
             var translate = new Vector3D(r1, r2, r3 * 0.8f);

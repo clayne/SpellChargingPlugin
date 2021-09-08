@@ -13,6 +13,7 @@ namespace SpellChargingPlugin.StateMachine.States
     public class Charging : State<ChargingSpell>
     {
         private static int _chargingInstances = 0;
+        private float _accelerationFactor = 1f;
         public Charging(ChargingSpell context) : base(context)
         {
         }
@@ -31,7 +32,9 @@ namespace SpellChargingPlugin.StateMachine.States
                     break;
                 case MagicCastingStates.Charged:
                 case MagicCastingStates.Concentrating:
-                    _context.UpdateCharge(elapsedSeconds);
+                    if (Settings.Instance.EnableAcceleration)
+                        _accelerationFactor = (Settings.Instance.AccelerationHalfTime + this._timeInState) / Settings.Instance.AccelerationHalfTime;
+                    _context.UpdateCharge(elapsedSeconds * _accelerationFactor);
                     break;
                 case MagicCastingStates.Released:
                     TransitionTo(() => new Release(_context));
