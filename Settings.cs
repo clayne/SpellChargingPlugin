@@ -43,10 +43,9 @@ namespace SpellChargingPlugin
 
         [ConfigValue("PowerPerCharge", "Power Per Charge", 
             "One charge will raise power by this amount in percent.\n" +
-            "The default values here and for MagickaPerCharge will result in 50% more spell power for every 100 points of Magicka spent on overcharging.\n" +
-            "Node: 'Spell Power' includes a spell's projectile speed, size, explosion radius and range (if it has any of those).")]
+            "Node: 'Spell Power' also includes a spell's projectile speed, size, explosion radius, range and impact force (if it has any of those).")]
         public float PowerPerCharge { get; internal set; }
-            = 5.0f;
+            = 10.0f;
 
         [ConfigValue("MagickaPerCharge", "Magicka Per Charge", 
             "How much Magicka does one charge cost? This is a flat value, not a percentage!")]
@@ -67,12 +66,12 @@ namespace SpellChargingPlugin
         [ConfigValue("ChargesPerParticle", "Charges Per Particle", 
             "Spawn a charge indicator particle every #N charges. Setting this to 1 would spawn a particle on every new charge.\n" +
             "Particle appearance depends on your mods (spell changes, custom spells etc). Some spells may not show any.\n" +
-            "Set to 0 to disable the particle system if you think it looks bad and to increase performance a little.")]
+            "Set to 0 to disable the particle system if you think it looks bad or to increase performance a little.")]
         public uint ChargesPerParticle { get; internal set; }
             = 3;
 
         [ConfigValue("ParticleScale", "Particle Scale", 
-            "Make the particles larger (>1.0) or smaller (<1.0).")]
+            "Make the particles larger (>1.0) or smaller (<1.0). Smaller usually looks better.")]
         public float ParticleScale { get; internal set; }
             = 1.0f;
 
@@ -95,7 +94,8 @@ namespace SpellChargingPlugin
 
         [ConfigValue("UpdatesPerSecond", "Updates Per Second", 
             "Performance setting. Controls how often the plugin updates its state.\n" +
-            "Leave at 30 UPS or raise it up to your maximum FPS if you want the plugin to be more responsive and the particle effects to look a little smoother.")]
+            "Leave at 30 UPS or raise it up to your maximum FPS if you want the plugin to be more responsive and the particle effects to look a little smoother.\n" +
+            "Should probably increase this when you increase ChargesPerSecond and/or reduce AccelerationHalfTime.")]
         public uint UpdatesPerSecond { get; internal set; }
             = 30;
 
