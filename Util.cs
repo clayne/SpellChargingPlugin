@@ -67,7 +67,7 @@ namespace SpellChargingPlugin
             public bool HasElapsed(float seconds, out float elapsed, bool reset = true)
             {
                 elapsed = _elapsedSeconds;
-                if (_elapsedSeconds < seconds)
+                if (!Enabled || _elapsedSeconds < seconds)
                     return false;
                 if (reset)
                     _elapsedSeconds = 0.0f;

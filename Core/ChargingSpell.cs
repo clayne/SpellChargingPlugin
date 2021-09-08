@@ -22,11 +22,11 @@ namespace SpellChargingPlugin.Core
 
         public State<ChargingSpell> CurrentState { get; set; }
         public bool IsTwoHanded => Spell.EquipSlot?.FormId == Settings.Instance.EquipBothFormID;
+        public int ChargeLevel { get; private set; } = 0;
         public bool CanCharge { get; }
 
         private readonly SpellPowerManager _spellPowerManager;
         private NiNode _particleParentNode;
-        private int _chargeLevel = 0;
 
         private ParticleEngine _particleEngine;
         private List<Particle> _spellParticles;
@@ -133,9 +133,9 @@ namespace SpellChargingPlugin.Core
             if (!TryDrainMagicka(Settings.Instance.MagickaPerCharge))
                 return;
             
-            ++_chargeLevel;
-            if (Settings.Instance.ChargesPerParticle > 0 && _chargeLevel > 0f && _chargeLevel % Settings.Instance.ChargesPerParticle == 0)
-                AddParticleForCharge(_chargeLevel);
+            ++ChargeLevel;
+            if (Settings.Instance.ChargesPerParticle > 0 && ChargeLevel > 0f && ChargeLevel % Settings.Instance.ChargesPerParticle == 0)
+                AddParticleForCharge(ChargeLevel);
             _spellPowerManager.IncreasePower();
         }
 
@@ -147,9 +147,9 @@ namespace SpellChargingPlugin.Core
             int localParticleCount = (int)(chargeLevel / Settings.Instance.ChargesPerParticle);
             int distanceFactor = (int)Math.Sqrt(localParticleCount);
 
-            float r1 = (5f + 1.66f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r2 = (5f + 1.66f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r3 = (5f + 1.66f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r1 = (6.66f + 1.33f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r2 = (6.66f + 1.33f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r3 = (6.66f + 1.33f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
 
             if (IsTwoHanded)
             {
@@ -202,13 +202,13 @@ namespace SpellChargingPlugin.Core
         {
             if (Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration)
                 return;
-            float toRefund = _chargeLevel * Settings.Instance.MagickaPerCharge;
+            float toRefund = ChargeLevel * Settings.Instance.MagickaPerCharge;
             Holder.Actor.RestoreActorValue(ActorValueIndices.Magicka, toRefund);
         }
 
         public void ResetAndClean()
         {
-            _chargeLevel = 0;
+            ChargeLevel = 0;
             _spellPowerManager?.ResetPower();
             _particleEngine?.Clear();
         }

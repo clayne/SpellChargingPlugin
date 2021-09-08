@@ -24,6 +24,10 @@ namespace SpellChargingPlugin.Core
         private bool _hasDuration, _hasMagnitude;
         private bool _needReset = false;
 
+        // just leave these here?
+        float? _baseRange;
+        float _modifiedRange;
+
         private SpellPowerManager() { }
         public static SpellPowerManager Create(ChargingSpell spell)
         {
@@ -36,6 +40,8 @@ namespace SpellChargingPlugin.Core
                 _isConcentration = spell.Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration,
                 _hasDuration = SpellHelper.HasDuration(spell.Spell),
                 _hasMagnitude = SpellHelper.HasMagnitude(spell.Spell),
+
+                _baseRange = spell.Spell.Effects.FirstOrDefault()?.Effect?.MagicProjectile?.ProjectileData?.Range,
             };
             return ret;
         }
@@ -46,11 +52,11 @@ namespace SpellChargingPlugin.Core
         public void IncreasePower()
         {
             _needReset = true;
+            float adjustedGrowth = Growth * (0.5f / (float)Math.Log10(_managedSpell.ChargeLevel * _managedSpell.ChargeLevel + 1));
             foreach (var eff in _managedSpell.Spell.Effects)
             {
                 var basePower = GetBasePower(eff);
                 EffectPower mod = GetModifiedPower(eff);
-                float adjustedGrowth = Growth / 10f;
 
                 switch (_managedSpell.Holder.Mode)
                 {
@@ -85,6 +91,23 @@ namespace SpellChargingPlugin.Core
 
                 if (_isConcentration)
                     ApplyModActiveEffects(eff, mod);
+            }
+
+            if (_baseRange > 1f)
+                _modifiedRange += _baseRange.Value * adjustedGrowth;
+            ApplyModRange(_modifiedRange);
+        }
+
+        /// <summary>
+        /// Projectile (and maybe conal concentration?) range, scaled proportionally to speed
+        /// </summary>
+        /// <param name="bonusRange"></param>
+        private void ApplyModRange(float bonusRange)
+        {
+            if (_modifiedRange > 0f)
+            {
+                IntPtr fRangePtr = _managedSpell.Spell.Effects[0].Effect.MagicProjectile.ProjectileData.Address + 0x0C;
+                Memory.WriteFloat(fRangePtr, _modifiedRange);
             }
         }
 

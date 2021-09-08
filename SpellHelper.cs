@@ -150,7 +150,15 @@ namespace SpellChargingPlugin
 
             public void ResetTo(EffectPower basePower)
             {
-                DebugHelper.Print($"[EffectPower:{GetHashCode()}] Reset to base {basePower.GetHashCode()}");
+                DebugHelper.Print($"[EffectPower:{GetHashCode()}] Resetting to base {basePower.GetHashCode()}.");
+                DebugHelper.Print($"\tMagnitude       [{Magnitude      }] -> [{basePower.Magnitude      }].");
+                DebugHelper.Print($"\tDuration        [{Duration       }] -> [{basePower.Duration       }].");
+                DebugHelper.Print($"\tArea            [{Area           }] -> [{basePower.Area           }].");
+                DebugHelper.Print($"\tSpeed           [{Speed          }] -> [{basePower.Speed          }].");
+                DebugHelper.Print($"\tExplosionRadius [{ExplosionRadius}] -> [{basePower.ExplosionRadius}].");
+                DebugHelper.Print($"\tCollisionRadius [{CollisionRadius}] -> [{basePower.CollisionRadius}].");
+                DebugHelper.Print($"\tConeSpread      [{ConeSpread     }] -> [{basePower.ConeSpread     }].");
+                DebugHelper.Print($"---\t---\t---");
                 Magnitude       = basePower.Magnitude;
                 Duration        = basePower.Duration;
                 Area            = basePower.Area;
