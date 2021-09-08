@@ -45,7 +45,7 @@ namespace SpellChargingPlugin
             "One charge will raise power by this amount in percent.\n" +
             "The default values here and for MagickaPerCharge will result in 50% more spell power for every 100 points of Magicka spent on overcharging.")]
         public float PowerPerCharge { get; internal set; }
-            = 10.0f;
+            = 5.0f;
 
         [ConfigValue("MagickaPerCharge", "Magicka Per Charge", 
             "How much Magicka does one charge cost? This is a flat value, not a percentage!")]
