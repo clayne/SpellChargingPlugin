@@ -24,10 +24,6 @@ namespace SpellChargingPlugin.Core
         private bool _hasDuration, _hasMagnitude;
         private bool _needReset = false;
 
-        // just leave these here?
-        float? _baseRange;
-        float _modifiedRange;
-
         private SpellPowerManager() { }
         public static SpellPowerManager Create(ChargingSpell spell)
         {
@@ -40,8 +36,6 @@ namespace SpellChargingPlugin.Core
                 _isConcentration = spell.Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration,
                 _hasDuration = SpellHelper.HasDuration(spell.Spell),
                 _hasMagnitude = SpellHelper.HasMagnitude(spell.Spell),
-
-                _baseRange = spell.Spell.Effects.FirstOrDefault()?.Effect?.MagicProjectile?.ProjectileData?.Range,
             };
             return ret;
         }
@@ -63,7 +57,7 @@ namespace SpellChargingPlugin.Core
                     case ChargingActor.OperationMode.Magnitude:
                         if (_hasMagnitude)
                             mod.Magnitude += basePower.Magnitude * Growth;
-                        else if(_hasDuration)
+                        else if (_hasDuration)
                             mod.Duration += basePower.Duration * Growth;
                         break;
                     case ChargingActor.OperationMode.Duration:
@@ -83,31 +77,30 @@ namespace SpellChargingPlugin.Core
                     mod.ExplosionRadius += basePower.ExplosionRadius * adjustedGrowth;
                 if (mod.Speed != null)
                     mod.Speed += basePower.Speed * adjustedGrowth;
+                if (mod.Range != null)
+                    mod.Range += basePower.Range * adjustedGrowth;
 
                 //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Eff: {eff.Effect.Name} Mod: {modifier}");
                 ApplyModPower(eff, mod);
                 ApplyModArea(eff, mod);
                 ApplyModSpeed(eff, mod);
+                ApplyModRange(eff, mod);
 
                 if (_isConcentration)
                     ApplyModActiveEffects(eff, mod);
             }
-
-            if (_baseRange > 1f)
-                _modifiedRange += _baseRange.Value * adjustedGrowth;
-            ApplyModRange(_modifiedRange);
         }
 
         /// <summary>
         /// Projectile (and maybe conal concentration?) range, scaled proportionally to speed
         /// </summary>
-        /// <param name="bonusRange"></param>
-        private void ApplyModRange(float bonusRange)
+        /// <param name="modRange"></param>
+        private void ApplyModRange(EffectItem eff, EffectPower mod)
         {
-            if (_modifiedRange > 0f)
+            if (mod.Range != null)
             {
-                IntPtr fRangePtr = _managedSpell.Spell.Effects[0].Effect.MagicProjectile.ProjectileData.Address + 0x0C;
-                Memory.WriteFloat(fRangePtr, _modifiedRange);
+                IntPtr fRangePtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x0C;
+                Memory.WriteFloat(fRangePtr, mod.Range.Value);
             }
         }
 
@@ -125,6 +118,7 @@ namespace SpellChargingPlugin.Core
                 ApplyModPower(eff, mod);
                 ApplyModArea(eff, mod);
                 ApplyModSpeed(eff, mod);
+                ApplyModRange(eff, mod);
             }
             _needReset = false;
         }

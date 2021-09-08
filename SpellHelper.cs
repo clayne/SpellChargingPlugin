@@ -65,6 +65,7 @@ namespace SpellChargingPlugin
                     ExplosionRadius = effectItem.Effect.Explosion?.ExplosionData?.Radius,
                     CollisionRadius = effectItem.Effect.MagicProjectile?.ProjectileData?.CollisionRadius,
                     ConeSpread      = effectItem.Effect.MagicProjectile?.ProjectileData?.ConeSpread,
+                    Range           = effectItem.Effect.MagicProjectile?.ProjectileData?.Range,
                 });
             return ret;
         }
@@ -86,6 +87,7 @@ namespace SpellChargingPlugin
                     ExplosionRadius = eff.Effect.Explosion?.ExplosionData?.Radius,
                     CollisionRadius = eff.Effect.MagicProjectile?.ProjectileData?.CollisionRadius,
                     ConeSpread      = eff.Effect.MagicProjectile?.ProjectileData?.ConeSpread,
+                    Range           = eff.Effect.MagicProjectile?.ProjectileData?.Range,
                 });
             return mod;
         }
@@ -147,6 +149,7 @@ namespace SpellChargingPlugin
             public float? ExplosionRadius;
             public float? CollisionRadius;
             public float? ConeSpread;
+            public float? Range;
 
             public void ResetTo(EffectPower basePower)
             {
@@ -158,6 +161,7 @@ namespace SpellChargingPlugin
                 DebugHelper.Print($"\tExplosionRadius [{ExplosionRadius}] -> [{basePower.ExplosionRadius}].");
                 DebugHelper.Print($"\tCollisionRadius [{CollisionRadius}] -> [{basePower.CollisionRadius}].");
                 DebugHelper.Print($"\tConeSpread      [{ConeSpread     }] -> [{basePower.ConeSpread     }].");
+                DebugHelper.Print($"\tRange           [{Range          }] -> [{basePower.Range          }].");
                 DebugHelper.Print($"---\t---\t---");
                 Magnitude       = basePower.Magnitude;
                 Duration        = basePower.Duration;
@@ -166,6 +170,7 @@ namespace SpellChargingPlugin
                 ExplosionRadius = basePower.ExplosionRadius;
                 CollisionRadius = basePower.CollisionRadius;
                 ConeSpread      = basePower.ConeSpread;
+                Range           = basePower.Range;
             }
         }
     }
