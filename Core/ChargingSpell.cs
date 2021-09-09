@@ -66,9 +66,9 @@ namespace SpellChargingPlugin.Core
             {
                 return new List<string>()
                 {
+                    eff.Effect?.MagicProjectile?.ModelName?.Text,  // may look stupid with some spells
                     eff.Effect?.CastingArt?.ModelName?.Text,       // this usually works best, but some spells have bad or no (visible) casting art
                     eff.Effect?.HitEffectArt?.ModelName?.Text,     // probably looks dumb
-                    eff.Effect?.MagicProjectile?.ModelName?.Text,  // may look stupid with some spells
                 }
                 .Where(s => string.IsNullOrEmpty(s) == false);
             }).Distinct().Take((int)Settings.Instance.ParticleLayers).Select(nif => Particle.Create(nif)).ToList();
@@ -147,9 +147,9 @@ namespace SpellChargingPlugin.Core
             int localParticleCount = (int)(chargeLevel / Settings.Instance.ChargesPerParticle);
             int distanceFactor = (int)Math.Sqrt(localParticleCount);
 
-            float r1 = (6.66f + 1.33f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r2 = (6.66f + 1.33f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r3 = (6.66f + 1.33f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r1 = (8f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r2 = (8f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r3 = (8f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
 
             if (IsTwoHanded)
             {
@@ -162,8 +162,8 @@ namespace SpellChargingPlugin.Core
             int a2 = Randomizer.NextInt(-1, 1);
             int a3 = a1 == 0 && a2 == 0 ? 1 : Randomizer.NextInt(-1, 1);
 
-            var scale = Randomizer.NextInt(225, 450) * 0.001f * Settings.Instance.ParticleScale;
-            var fade = 0.5f;
+            var scale = Randomizer.NextInt(250, 500) * 0.001f * Settings.Instance.ParticleScale;
+            var fade = 0.8f;
 
             var translate = new Vector3D(r1, r2, r3 * 0.8f);
 

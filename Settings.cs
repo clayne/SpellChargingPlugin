@@ -25,8 +25,8 @@ namespace SpellChargingPlugin
             "When a spell has both a Magnitude and a Duration (most Illusion spells, Flesh spells, etc.), which of the two should be charged?\n" +
             "Options: Magnitude, Duration\n" +
             "You can also switch between them ingame by pressing the hotkey.\n" +
-            "If a spell does not have the prioritized attribute, charging will switch to the secondary.\n" +
-            "If a spell has neither, nothing will happen.\n" +
+            "If a spell does not have the prioritized attribute, it will charge the other one.\n" +
+            "If a spell has neither (Clairvoyance and other script-based spells), nothing will happen and no magicka will be spent.\n" +
             "It is possible to switch priorities while in the middle of charging.")]
         public string OperationMode { get; internal set; }
             = "Magnitude";
@@ -37,13 +37,14 @@ namespace SpellChargingPlugin
             = "Shift + G";
 
         [ConfigValue("PreChargeDelay", "Pre-charge Delay",
-            "Time (in seconds) that a spell must be held before it begins overcharging.")]
+            "Time (in seconds) that a spell must be held before it begins overcharging.\n" +
+            "Set to 0 to begin overcharging immediately.")]
         public float PreChargeDelay { get; internal set; }
             = 0.5f;
 
         [ConfigValue("PowerPerCharge", "Power Per Charge", 
             "One charge will raise power by this amount in percent.\n" +
-            "Node: 'Spell Power' also includes a spell's projectile speed, size, explosion radius, range and impact force (if it has any of those).")]
+            "Note: 'Spell Power' also includes a spell's projectile speed, size, explosion radius, range and impact force (if it has any of those). Those will charge at a slower rate than the two main ones.")]
         public float PowerPerCharge { get; internal set; }
             = 10.0f;
 
@@ -65,10 +66,10 @@ namespace SpellChargingPlugin
 
         [ConfigValue("ChargesPerParticle", "Charges Per Particle", 
             "Spawn a charge indicator particle every #N charges. Setting this to 1 would spawn a particle on every new charge.\n" +
-            "Particle appearance depends on your mods (spell changes, custom spells etc). Some spells may not show any.\n" +
+            "Particle appearance depends on your mods (spell changes, custom spells, mesh changes, textures etc). Some spells may not spawn any visible particles at all.\n" +
             "Set to 0 to disable the particle system if you think it looks bad or to increase performance a little.")]
         public uint ChargesPerParticle { get; internal set; }
-            = 3;
+            = 2;
 
         [ConfigValue("ParticleScale", "Particle Scale", 
             "Make the particles larger (>1.0) or smaller (<1.0). Smaller usually looks better.")]
@@ -87,26 +88,26 @@ namespace SpellChargingPlugin
             = true;
 
         [ConfigValue("AccelerationHalfTime", "Acceleration Halving Time",
-            "After charging for this long (in second), charging speed will double.\n" +
-            "The acceleration is gradual and scales beyond this time.")]
+            "After charging for this long (in seconds), charging speed will double.\n" +
+            "The acceleration is gradual and scales beyond this time, e.g. twice as fast after 5s, three times as fast after 10s, four times after 15s and so on.")]
         public float AccelerationHalfTime { get; internal set; }
             = 5f;
 
         [ConfigValue("UpdatesPerSecond", "Updates Per Second", 
-            "Performance setting. Controls how often the plugin updates its state.\n" +
-            "Leave at 30 UPS or raise it up to your maximum FPS if you want the plugin to be more responsive and the particle effects to look a little smoother.\n" +
-            "Should probably increase this when you increase ChargesPerSecond and/or reduce AccelerationHalfTime.")]
+            "Controls how often the plugin updates its state.\n" +
+            "Raise it up to your maximum FPS if you want the plugin to be more responsive and the particle effects to look a little smoother at a very small performance cost.\n" +
+            "Should also probably increase this when you increase ChargesPerSecond and/or reduce AccelerationHalfTime.")]
         public uint UpdatesPerSecond { get; internal set; }
-            = 30;
+            = 48;
 
         [ConfigValue("MaxParticles", "Max Particles", 
-            "Performance/stability setting. Maximum number of particles to spawn in TOTAL (counting spells in both hands). Don't go too crazy.\n" +
+            "Maximum number of particles to spawn in TOTAL. Don't go too crazy.\n" +
             "Set to 0 to disable particles.")]
         public uint MaxParticles { get; internal set; }
             = 100;
 
         [ConfigValue("ParticleLayers", "Particle Layers", 
-            "Tweak setting. Too few layers cause some spells not to spawn visible particles while charging. Too many will either do nothing or produce ugly results.\n" +
+            "Too few layers cause some spells not to spawn visible particles while charging. Too many will either do nothing or produce ugly results.\n" +
             "Best to leave at 2.")]
         public uint ParticleLayers { get; internal set; }
             = 2;

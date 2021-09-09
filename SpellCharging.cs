@@ -57,8 +57,8 @@ namespace SpellChargingPlugin
                 _lastOnFrameTime = now;
                 Update(elapsedMilliSeconds / 1000.0f);
             });
-
-            Hook_ActiveEffect_CalculateDurationAndMagnitude();
+            if (Settings.Instance.AllowConcentrationSpells)
+                Hook_ActiveEffect_CalculateDurationAndMagnitude();
         }
 
         /// <summary>

@@ -1,4 +1,5 @@
-﻿using NetScriptFramework.SkyrimSE;
+﻿using NetScriptFramework;
+using NetScriptFramework.SkyrimSE;
 using NetScriptFramework.Tools;
 using SpellChargingPlugin.StateMachine;
 using System;
@@ -184,6 +185,17 @@ namespace SpellChargingPlugin.Core
         {
             DebugHelper.Print($"[ChargingActor] Hand: {handSlot} -> {spellItem?.Name}");
             return new ChargingSpell(this, spellItem, handSlot);
+        }
+
+        /// <summary>
+        /// Check if the actor is dual casting (same spell in both hands, dual casting perk, casting both)
+        /// </summary>
+        /// <param name="actor"></param>
+        /// <returns></returns>
+        public bool IsDualCasting()
+        {
+            var res = Memory.InvokeCdecl(new IntPtr(0x140632060).FromBase(), Actor.Cast<Actor>());
+            return res.ToBool();
         }
     }
 }

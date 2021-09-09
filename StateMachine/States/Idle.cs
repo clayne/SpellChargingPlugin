@@ -1,4 +1,5 @@
-﻿using NetScriptFramework.SkyrimSE;
+﻿using NetScriptFramework;
+using NetScriptFramework.SkyrimSE;
 using SpellChargingPlugin.Core;
 using SpellChargingPlugin.ParticleSystem.Behaviors;
 using SpellChargingPlugin.StateMachine;
@@ -14,7 +15,6 @@ namespace SpellChargingPlugin.StateMachine.States
     {
         private Util.SimpleTimer _preChargeControlTimer = new Util.SimpleTimer();
         private Util.SimpleTimer _stateResetControlTimer = new Util.SimpleTimer();
-        private bool _needsReset = true;
         public Idle(ChargingSpell context) : base(context)
         {
         }
@@ -31,7 +31,6 @@ namespace SpellChargingPlugin.StateMachine.States
                 DebugHelper.Print($"[State.Idle:{_context.Spell.Name}] Auto cleanup.");
                 _context.ResetAndClean();
                 _stateResetControlTimer.Enabled = false;
-                _needsReset = false;
             }
 
             switch (handState.Value.State)
@@ -41,17 +40,19 @@ namespace SpellChargingPlugin.StateMachine.States
                         break;
                     goto case MagicCastingStates.Charged;
                 case MagicCastingStates.Charged:
-                    if (_needsReset)
-                    {
-                        _context.ResetAndClean();
-                        _needsReset = false;
-                    }
                     _preChargeControlTimer.Update(elapsedSeconds);
                     if (!_preChargeControlTimer.HasElapsed(Settings.Instance.PreChargeDelay, out _))
                         return;
+
                     TransitionTo(() => new Charging(_context));
                     break;
             }
+        }
+
+        protected override void OnExitState()
+        {
+            _context.ResetAndClean();
+            base.OnExitState();
         }
     }
 }

@@ -137,8 +137,6 @@ namespace SpellChargingPlugin
             }
         }
 
-        
-
         /// <summary>
         /// Holds temporary spell power
         /// </summary>
@@ -165,7 +163,7 @@ namespace SpellChargingPlugin
                 DebugHelper.Print($"\tCollisionRadius [{CollisionRadius}] -> [{basePower.CollisionRadius}].");
                 DebugHelper.Print($"\tConeSpread      [{ConeSpread     }] -> [{basePower.ConeSpread     }].");
                 DebugHelper.Print($"\tRange           [{Range          }] -> [{basePower.Range          }].");
-                DebugHelper.Print($"\tImpactForce      [{Force    }] -> [{basePower.Force    }].");
+                DebugHelper.Print($"\tImpactForce     [{Force          }] -> [{basePower.Force          }].");
                 DebugHelper.Print($"---\t---\t---");
                 Magnitude       = basePower.Magnitude;
                 Duration        = basePower.Duration;
@@ -175,7 +173,7 @@ namespace SpellChargingPlugin
                 CollisionRadius = basePower.CollisionRadius;
                 ConeSpread      = basePower.ConeSpread;
                 Range           = basePower.Range;
-                Force     = basePower.Force;
+                Force           = basePower.Force;
             }
         }
     }
