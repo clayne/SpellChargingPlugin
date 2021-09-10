@@ -11,23 +11,12 @@ using System.Threading.Tasks;
 
 namespace SpellChargingPlugin.ParticleSystem
 {
-    public partial class ParticleEngine
+    public sealed class ParticleEngine
     {
-        public static uint GlobalParticleCount { get; set; }
+        public int ParticleCount => _activeParticles.Count;
 
-        private HashSet<Particle> _activeParticles = new HashSet<Particle>();
-        private uint _maxParticles;
-        private Util.SimpleTimer _cleanUpTimer = new Util.SimpleTimer();
-
-        private ParticleEngine() { }
-        public static ParticleEngine Create(uint maxParticles)
-        {
-            var ret = new ParticleEngine()
-            {
-                _maxParticles = maxParticles,
-            };
-            return ret;
-        }
+        private readonly HashSet<Particle> _activeParticles = new HashSet<Particle>();
+        private readonly Util.SimpleTimer _cleanUpTimer = new Util.SimpleTimer();
 
         public void Clear()
         {
@@ -36,17 +25,11 @@ namespace SpellChargingPlugin.ParticleSystem
                 item.Dispose();
             }
             _activeParticles.Clear();
-            DebugHelper.Print($"[ParticleEngine:{GetHashCode()}] Cleared. {GlobalParticleCount} active particles remain.");
         }
 
         public void Add(Particle newParticle)
         {
-            if (_activeParticles.Count >= _maxParticles)
-                return;
             _activeParticles.Add(newParticle);
-            ++GlobalParticleCount;
-            if (GlobalParticleCount % 25 == 0)
-                DebugHelper.Print($"[ParticleEngine] Total particles: {GlobalParticleCount}");
         }
 
         public void Update(float elapsedSeconds)
@@ -63,7 +46,7 @@ namespace SpellChargingPlugin.ParticleSystem
                     item.Dispose();
             }
             // This really doesn't need to happen all that often, I think
-            if (_cleanUpTimer.HasElapsed(0.5f, out _))
+            if (_cleanUpTimer.HasElapsed(1.5f, out _))
                 _activeParticles.RemoveWhere(e => e.Delete);
         }
     }

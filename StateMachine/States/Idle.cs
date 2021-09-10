@@ -14,7 +14,7 @@ namespace SpellChargingPlugin.StateMachine.States
     public class Idle : State<ChargingSpell>
     {
         private Util.SimpleTimer _preChargeControlTimer = new Util.SimpleTimer();
-        private Util.SimpleTimer _stateResetControlTimer = new Util.SimpleTimer();
+
         public Idle(ChargingSpell context) : base(context)
         {
         }
@@ -25,34 +25,20 @@ namespace SpellChargingPlugin.StateMachine.States
             if (handState == null)
                 return;
 
-            _stateResetControlTimer.Update(elapsedSeconds);
-            if (_stateResetControlTimer.HasElapsed(Settings.Instance.AutoCleanupDelay, out _))
-            {
-                DebugHelper.Print($"[State.Idle:{_context.Spell.Name}] Auto cleanup.");
-                _context.ResetAndClean();
-                _stateResetControlTimer.Enabled = false;
-            }
-
             switch (handState.Value.State)
             {
                 case MagicCastingStates.Concentrating:
                     if (!Settings.Instance.AllowConcentrationSpells)
                         break;
-                    goto case MagicCastingStates.Charged;
+                    TransitionTo(() => new ChargingConcentration(_context));
+                    break;
                 case MagicCastingStates.Charged:
                     _preChargeControlTimer.Update(elapsedSeconds);
                     if (!_preChargeControlTimer.HasElapsed(Settings.Instance.PreChargeDelay, out _))
                         return;
-
-                    TransitionTo(() => new Charging(_context));
+                    TransitionTo(() => new ChargingFireAndForget(_context));
                     break;
             }
-        }
-
-        protected override void OnExitState()
-        {
-            _context.ResetAndClean();
-            base.OnExitState();
         }
     }
 }

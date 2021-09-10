@@ -21,47 +21,31 @@ namespace SpellChargingPlugin.Core
         public EquippedSpellSlots Slot { get; }
 
         public State<ChargingSpell> CurrentState { get; set; }
-        public bool IsTwoHanded => Spell.EquipSlot?.FormId == Settings.Instance.EquipBothFormID;
+        public bool IsTwoHanded => Spell.EquipSlot?.FormId == 0x00013F45;
         public int ChargeLevel { get; private set; } = 0;
         public bool CanCharge { get; }
 
-        private readonly SpellPowerManager _spellPowerManager;
         private NiNode _particleParentNode;
 
-        private ParticleEngine _particleEngine;
+        private readonly ParticleEngine _particleEngine = new ParticleEngine();
         private List<Particle> _spellParticles;
-        private Util.SimpleTimer _chargingTimer = new Util.SimpleTimer();
-        private readonly float _fChargesPerSecond = 1.0f / Settings.Instance.ChargesPerSecond;
 
         public ChargingSpell(ChargingActor holder, SpellItem spell, EquippedSpellSlots slot)
         {
-            //DebugHelper.Print($"[ChargingSpell] {spell.Name} Initializing");
-
             Holder = holder;
             Spell = spell;
             Slot = slot;
 
             // if the spell cannot (or should not) be charged, don't bother with setup
             CanCharge = SpellHelper.CanSpellBeCharged(spell);
-            DebugHelper.Print($"Spell {spell.Name} {(!CanCharge ? "can't" : "can")} be charged.");
+            DebugHelper.Print($"[ChargingSpell:{spell.Name}] {(!CanCharge ? "Can't" : "Can")} be charged.");
             if (!CanCharge)
                 return;
 
             RefreshParticleNode();
 
-            //DebugHelper.Print($"[ChargingSpell] Create Spell Power Manager");
-            _spellPowerManager = SpellPowerManager.Create(this);
-            _spellPowerManager.Growth = Settings.Instance.PowerPerCharge / 100f;
-
-            if (Settings.Instance.SkillAffectsPower)
-            {
-                var school = spell.Effects.FirstOrDefault()?.Effect?.AssociatedSkill;
-                if(school != null)
-                    _spellPowerManager.Growth *= (1f + Holder.Actor.GetActorValue(school.Value) / 100f);
-            }
-
             // TODO: this is stupid, cache it or something
-            DebugHelper.Print($"[ChargingSpell] Load Base Particle(s)");
+            DebugHelper.Print($"[ChargingSpell:{spell.Name}] Load Base Particle(s)");
             _spellParticles = spell.Effects.SelectMany(eff =>
             {
                 return new List<string>()
@@ -73,10 +57,6 @@ namespace SpellChargingPlugin.Core
                 .Where(s => string.IsNullOrEmpty(s) == false);
             }).Distinct().Take((int)Settings.Instance.ParticleLayers).Select(nif => Particle.Create(nif)).ToList();
 
-            //DebugHelper.Print($"[ChargingSpell] Create Particle Engine");
-            _particleEngine = ParticleEngine.Create(Settings.Instance.MaxParticles);
-
-            DebugHelper.Print($"[ChargingSpell] Enter Idle State");
             CurrentState = new StateMachine.States.Idle(this);
         }
 
@@ -112,44 +92,32 @@ namespace SpellChargingPlugin.Core
         {
             if (!CanCharge)
                 return;
-
-            CurrentState.Update(elapsedSeconds);
             _particleEngine.Update(elapsedSeconds);
+            CurrentState.Update(elapsedSeconds);
         }
 
         /// <summary>
         /// Should only be called by Charging State
         /// </summary>
-        /// <param name="elapsedSeconds"></param>
-        public void UpdateCharge(float elapsedSeconds)
+        public void AddCharge()
         {
-            if (!CanCharge)
-                return;
-
-            _chargingTimer.Update(elapsedSeconds);
-            if (!_chargingTimer.HasElapsed(_fChargesPerSecond, out _))
-                return;
-
-            if (!TryDrainMagicka(Settings.Instance.MagickaPerCharge))
-                return;
-            
             ++ChargeLevel;
-            if (Settings.Instance.ChargesPerParticle > 0 && ChargeLevel > 0f && ChargeLevel % Settings.Instance.ChargesPerParticle == 0)
-                AddParticleForCharge(ChargeLevel);
-            _spellPowerManager.IncreasePower();
+            if (Settings.Instance.ChargesPerParticle > 0 && ChargeLevel > 0 && ChargeLevel % Settings.Instance.ChargesPerParticle == 0)
+                AddParticleForCharge();
+            SpellPowerManager.Instance.IncreasePower(this, ChargeLevel);
         }
 
-        private void AddParticleForCharge(float chargeLevel)
+        private void AddParticleForCharge()
         {
-            if (ParticleEngine.GlobalParticleCount >= Settings.Instance.MaxParticles)
+            if (_particleEngine.ParticleCount >= Settings.Instance.MaxParticles)
                 return;
 
-            int localParticleCount = (int)(chargeLevel / Settings.Instance.ChargesPerParticle);
+            int localParticleCount = ChargeLevel / (int)Settings.Instance.ChargesPerParticle;
             int distanceFactor = (int)Math.Sqrt(localParticleCount);
 
-            float r1 = (8f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r2 = (8f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r3 = (8f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r1 = (5f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r2 = (5f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r3 = (5f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
 
             if (IsTwoHanded)
             {
@@ -169,7 +137,7 @@ namespace SpellChargingPlugin.Core
 
             foreach (var p in _spellParticles)
             {
-                if (ParticleEngine.GlobalParticleCount >= Settings.Instance.MaxParticles)
+                if (_particleEngine.ParticleCount >= Settings.Instance.MaxParticles)
                     return;
 
                 Particle newParticle = p
@@ -182,20 +150,12 @@ namespace SpellChargingPlugin.Core
                 newParticle.AddBehavior(new OrbitBehavior(newParticle, new Vector3D(), new Vector3D(a1, a2, a3), 1f));
                 newParticle.AddBehavior(new AimForwardBehavior(newParticle));
                 newParticle.AddBehavior(new BreatheBehavior(newParticle, 0.1f, 1f, 16f)
-                { Active = () => CurrentState is StateMachine.States.Charging });
-                newParticle.AddBehavior(new FadeBehavior(newParticle, 0.75f)
-                { Active = () => !(CurrentState is StateMachine.States.Charging) });
+                { Active = () => CurrentState is StateMachine.States.ChargingBase });
+                newParticle.AddBehavior(new FadeBehavior(newParticle, 1.0f)
+                { Active = () => !(CurrentState is StateMachine.States.ChargingBase) });
 
                 _particleEngine.Add(newParticle);
             }
-        }
-
-        private bool TryDrainMagicka(float magCost)
-        {
-            if (Holder.Actor.GetActorValue(ActorValueIndices.Magicka) < magCost)
-                return false;
-            Holder.Actor.DamageActorValue(ActorValueIndices.Magicka, -magCost);
-            return true;
         }
 
         public void Refund()
@@ -206,11 +166,13 @@ namespace SpellChargingPlugin.Core
             Holder.Actor.RestoreActorValue(ActorValueIndices.Magicka, toRefund);
         }
 
-        public void ResetAndClean()
+        public void Reset()
         {
             ChargeLevel = 0;
-            _spellPowerManager?.ResetPower();
-            _particleEngine?.Clear();
+            _particleEngine.Clear();
+            SpellPowerManager.Instance.ResetSpellModifiers(Spell);
+            SpellPowerManager.Instance.ResetSpellPower(Spell);
+            SpellPowerManager.Instance.UnregisterForReset(Holder.Actor, Spell);
         }
     }
 }

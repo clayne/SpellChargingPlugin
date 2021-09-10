@@ -2,6 +2,7 @@
 using NetScriptFramework.SkyrimSE;
 using NetScriptFramework.Tools;
 using SpellChargingPlugin.Core;
+using SpellChargingPlugin.ParticleSystem;
 using System;
 using System.Linq;
 
@@ -17,6 +18,7 @@ namespace SpellChargingPlugin
         private static Timer _gameActiveTimer = null;
         private static long? _lastOnFrameTime = null;
         private static float _timePerUpdate = 1.0f / Math.Max(Settings.Instance.UpdatesPerSecond, 1);
+        private static TESCameraStates _lastCameraState;
 
         private static ChargingActor _chargingPlayer;
         private static Util.SimpleTimer _actorUpdateControlTimer = new Util.SimpleTimer();
@@ -57,8 +59,18 @@ namespace SpellChargingPlugin
                 _lastOnFrameTime = now;
                 Update(elapsedMilliSeconds / 1000.0f);
             });
-            if (Settings.Instance.AllowConcentrationSpells)
-                Hook_ActiveEffect_CalculateDurationAndMagnitude();
+
+            Events.OnUpdateCamera.Register(e =>
+            {
+                var id = e.Camera.State.Id;
+                if (id == _lastCameraState)
+                    return;
+                _lastCameraState = id;
+                if (id == TESCameraStates.FirstPerson || id == TESCameraStates.ThirdPerson1 || id == TESCameraStates.ThirdPerson2)
+                    _chargingPlayer?.RefreshSpellParticleNodes();
+            });
+
+            Hook_ActiveEffect_CalculateDurationAndMagnitude();
         }
 
         /// <summary>
@@ -73,7 +85,7 @@ namespace SpellChargingPlugin
                 Address = Util.addr_CalculateDurationAndMagnitude,
                 IncludeLength = 0x20,
                 ReplaceLength = 0x20,
-                After = ctx => // before? after? i don't know
+                Before = ctx => // before? after? i don't know
                 {
                     var activeEffectPtr = ctx.CX;
                     var offenderPtr = ctx.DX;
@@ -83,7 +95,6 @@ namespace SpellChargingPlugin
                     if (activeEffect == null)
                         return;
 
-                    // May not be the best place to put
                     if (_activeEffectPurgeControlTimer.HasElapsed(5.0f, out var _))
                         ActiveEffectTracker.Instance.PurgeInvalids();
 
@@ -106,27 +117,21 @@ namespace SpellChargingPlugin
                             .ForVictim(victimPtr)
                             .WithActiveEffect(activeEffectPtr)
                             .WithBaseEffectID(activeEffect.EffectData.Effect.FormId);
-                        return;
+                    }
+                    else
+                    {
+                        // Damaging spells, despite having a positive magnitute, apparently switch to negative magnitudes on their effects?
+                        // Makes sense for "valuemodifier" types, I guess. This approach misbehaves sometimes.
+                        if (magnitude < 0f)
+                            tracked.Sign = -1;
+                        Memory.WriteFloat(activeEffectPtr + 0x78, tracked.Magnitude * tracked.Sign, true);
+                        Memory.WriteFloat(activeEffectPtr + 0x74, tracked.Duration, true);
                     }
 
-                    //DebugHelper.Print($"[SpellCharging] Tracked actor MATCH: {tracked.Me.ToHexString()}");
-
-                    // Damaging spells, despite having a positive magnitute, apparently switch to negative magnitudes on their effects?
-                    // Makes sense for "valuemodifier" types, I guess. This approach misbehaves sometimes.
-                    if (magnitude < 0f)
-                        tracked.Sign = -1;
-                    Memory.WriteFloat(activeEffectPtr + 0x78, tracked.Magnitude * tracked.Sign, true);
-                    Memory.WriteFloat(activeEffectPtr + 0x74, tracked.Duration, true);
-
+                    ActiveEffectTracker.Instance.OnEffectApplied(activeEffect);
                     //DebugHelper.Print($"Updated ActiveEffect {activeEffectPtr.ToHexString()} MAG: {Memory.ReadFloat(activeEffectPtr + 0x78)} DUR: {Memory.ReadFloat(activeEffectPtr + 0x74)}");
                 }
             });
-        }
-
-        protected override void Shutdown()
-        {
-            _chargingPlayer?.CleanArtObj();
-            base.Shutdown();
         }
 
         private static void Update(float elapsedSeconds)
@@ -142,8 +147,11 @@ namespace SpellChargingPlugin
             if (_chargingPlayer == null)
                 _chargingPlayer = new ChargingActor(PlayerCharacter.Instance);
 
-            if (_actorUpdateControlTimer.HasElapsed(_timePerUpdate, out var elapsed))
-                _chargingPlayer.Update(elapsed);
+            if (!_actorUpdateControlTimer.HasElapsed(_timePerUpdate, out var elapsed))
+                return;
+
+            Util.SimpleDeferredExecutor.Update(elapsed);
+            _chargingPlayer.Update(elapsed);
         }
     }
 }

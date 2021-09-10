@@ -24,7 +24,7 @@ namespace SpellChargingPlugin.Core
 
         private ChargingSpell _chargingSpellLeft;
         private ChargingSpell _chargingSpellRight;
-        private TESCameraStates _cameraState;
+        
         private bool _leftEqualsRight = false;
 
         public ChargingActor(Character character)
@@ -55,19 +55,7 @@ namespace SpellChargingPlugin.Core
                 return;
 
             DebugHelper.Print($"[ChargingActor] Register OnUpdateCamera");
-            Events.OnUpdateCamera.Register(e =>
-            {
-                var id = e.Camera.State.Id;
-                if (id == _cameraState)
-                    return;
-                _cameraState = id;
-                if (id == TESCameraStates.FirstPerson || id == TESCameraStates.ThirdPerson1 || id == TESCameraStates.ThirdPerson2)
-                {
-                    DebugHelper.Print($"[ChargingActor] Camera switch to {_cameraState}. Expect funny visuals!");
-                    _chargingSpellLeft?.RefreshParticleNode();
-                    _chargingSpellRight?.RefreshParticleNode();
-                }
-            });
+            
 
             if (!HotkeyBase.TryParse(Settings.Instance.HotKey, out var keys))
                 keys = new VirtualKeys[] { VirtualKeys.Shift, VirtualKeys.G };
@@ -93,6 +81,12 @@ namespace SpellChargingPlugin.Core
             //    nextMode = OperationMode.Magnitude;
 
             //SetOperationMode(nextMode);
+        }
+
+        public void RefreshSpellParticleNodes()
+        {
+            _chargingSpellLeft?.RefreshParticleNode();
+            _chargingSpellRight?.RefreshParticleNode();
         }
 
         /// <summary>
@@ -127,6 +121,14 @@ namespace SpellChargingPlugin.Core
             _chargingSpellLeft?.Update(elapsedSeconds);
             if (!_leftEqualsRight)
                 _chargingSpellRight?.Update(elapsedSeconds);
+        }
+
+        public bool TryDrainMagicka(float magCost)
+        {
+            if (Actor.GetActorValue(ActorValueIndices.Magicka) < magCost)
+                return false;
+            Actor.DamageActorValue(ActorValueIndices.Magicka, -magCost);
+            return true;
         }
 
         /// <summary>
@@ -171,7 +173,7 @@ namespace SpellChargingPlugin.Core
         /// <param name="spell"></param>
         private void ClearSpell(ref ChargingSpell spell)
         {
-            spell?.ResetAndClean();
+            spell?.Reset();
             spell = null;
         }
 

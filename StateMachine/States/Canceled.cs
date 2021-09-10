@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 
 namespace SpellChargingPlugin.StateMachine.States
 {
-    public class Cancel : State<ChargingSpell>
+    public class Canceled : State<ChargingSpell>
     {
-        public Cancel(ChargingSpell context) : base(context)
+        public Canceled(ChargingSpell context) : base(context)
         {
         }
 
@@ -20,8 +20,9 @@ namespace SpellChargingPlugin.StateMachine.States
         /// <param name="elapsedSeconds"></param>
         protected override void OnUpdate(float elapsedSeconds)
         {
-            _context.Refund();
-            _context.ResetAndClean();
+            if (_context.Spell.SpellData.CastingType != NetScriptFramework.SkyrimSE.EffectSettingCastingTypes.Concentration)
+                _context.Refund();
+            _context.Reset();
             TransitionTo(() => new Idle(_context));
         }
     }

@@ -1,9 +1,11 @@
 ﻿using NetScriptFramework;
+using NetScriptFramework.SkyrimSE;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using static NetScriptFramework.SkyrimSE.ActiveEffect;
 
 namespace SpellChargingPlugin.Core
 {
@@ -16,7 +18,9 @@ namespace SpellChargingPlugin.Core
         private static ActiveEffectTracker _instance;
         public static ActiveEffectTracker Instance => _instance ?? (_instance = new ActiveEffectTracker());
 
-        private ConcurrentDictionary<IntPtr, HashSet<ActiveEffectHolder>> _trackedEffects = new ConcurrentDictionary<IntPtr, HashSet<ActiveEffectHolder>>();
+        public event EventHandler<ActiveEffect> SpellEffectApplied;
+
+        private ConcurrentDictionary<IntPtr, ConcurrentSet<ActiveEffectHolder>> _trackedEffects = new ConcurrentDictionary<IntPtr, ConcurrentSet<ActiveEffectHolder>>();
         private ActiveEffectTracker() { }
 
         public TrackingResult Tracked(IntPtr activeEffectPtr)
@@ -33,7 +37,7 @@ namespace SpellChargingPlugin.Core
         public TrackingSetup Track(IntPtr activeEffectPtr)
         {
             if (!_trackedEffects.TryGetValue(activeEffectPtr, out var ret))
-                if (!_trackedEffects.TryAdd(activeEffectPtr, ret = new HashSet<ActiveEffectHolder>()))
+                if (!_trackedEffects.TryAdd(activeEffectPtr, ret = new ConcurrentSet<ActiveEffectHolder>()))
                     throw new Exception($"[ActiveEffectTracker] Failed to track entry! {activeEffectPtr.ToHexString()}");
             return new TrackingSetup(ret);
         }
@@ -51,6 +55,11 @@ namespace SpellChargingPlugin.Core
                 DebugHelper.Print($"[ActiveEffectTracker] Purging invalid entry {item.Effect.ToHexString()}");
                 _trackedEffects.TryRemove(item.Effect,out var _);
             }
+        }
+
+        public void OnEffectApplied(ActiveEffect activeEffect)
+        {
+            SpellEffectApplied?.Invoke(this, activeEffect);
         }
 
 
@@ -93,7 +102,7 @@ namespace SpellChargingPlugin.Core
         public sealed class TrackingSetup
         {
             ActiveEffectHolder _entry;
-            public TrackingSetup(HashSet<ActiveEffectHolder> currentVictims)
+            public TrackingSetup(ICollection<ActiveEffectHolder> currentVictims)
             {
                 _entry = new ActiveEffectHolder();
                 currentVictims.Add(_entry);
@@ -123,7 +132,6 @@ namespace SpellChargingPlugin.Core
                 return this;
             }
         }
-
         public sealed class ActiveEffectHolder
         {
             public IntPtr Effect { get; set; }

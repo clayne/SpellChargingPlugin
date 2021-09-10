@@ -50,6 +50,7 @@
     <Reference Include="System.Data" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConcurrentSet.cs" />
     <Compile Include="Core\ActiveEffectTracker.cs" />
     <Compile Include="Core\ChargingActor.cs" />
     <Compile Include="Core\ChargingSpell.cs" />
@@ -69,10 +70,12 @@
     <Compile Include="SpellHelper.cs" />
     <Compile Include="StateMachine\IStateHolder.cs" />
     <Compile Include="StateMachine\State.cs" />
-    <Compile Include="StateMachine\States\Cancel.cs" />
-    <Compile Include="StateMachine\States\Charging.cs" />
+    <Compile Include="StateMachine\States\Canceled.cs" />
+    <Compile Include="StateMachine\States\ChargingBase.cs" />
+    <Compile Include="StateMachine\States\ChargingConcentration.cs" />
+    <Compile Include="StateMachine\States\ChargingFireAndForget.cs" />
     <Compile Include="StateMachine\States\Idle.cs" />
-    <Compile Include="StateMachine\States\Release.cs" />
+    <Compile Include="StateMachine\States\Released.cs" />
     <Compile Include="Util.cs" />
   </ItemGroup>
   <ItemGroup>

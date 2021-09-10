@@ -41,7 +41,6 @@ namespace SpellChargingPlugin.ParticleSystem
             _niAvObject.DecRef();
             _niAvObject = null;
             _behaviors.Clear();
-            --ParticleEngine.GlobalParticleCount;
         }
 
         public void Update(float elapsedSeconds)

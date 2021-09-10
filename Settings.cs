@@ -37,7 +37,7 @@ namespace SpellChargingPlugin
             = "Shift + G";
 
         [ConfigValue("PreChargeDelay", "Pre-charge Delay",
-            "Time (in seconds) that a spell must be held before it begins overcharging.\n" +
+            "Time (in seconds) that a non-concentration spell must be held before it begins overcharging.\n" +
             "Set to 0 to begin overcharging immediately.")]
         public float PreChargeDelay { get; internal set; }
             = 0.5f;
@@ -98,10 +98,10 @@ namespace SpellChargingPlugin
             "Raise it up to your maximum FPS if you want the plugin to be more responsive and the particle effects to look a little smoother at a very small performance cost.\n" +
             "Should also probably increase this when you increase ChargesPerSecond and/or reduce AccelerationHalfTime.")]
         public uint UpdatesPerSecond { get; internal set; }
-            = 48;
+            = 30;
 
         [ConfigValue("MaxParticles", "Max Particles", 
-            "Maximum number of particles to spawn in TOTAL. Don't go too crazy.\n" +
+            "Maximum number of particles to spawn per hand. Don't go too crazy.\n" +
             "Set to 0 to disable particles.")]
         public uint MaxParticles { get; internal set; }
             = 100;
@@ -119,24 +119,19 @@ namespace SpellChargingPlugin
 
         [ConfigValue("ArtObjectMagnitude", "ArtObject for Magnitude", 
             "The FormID of the ARTO that gets attached when in 'Magnitude' overcharge mode. Set to 0 to disable.\n" +
-            "Set to 0 to disable the effect.", ConfigEntryFlags.PreferHex)]
+            "Set to 0 to disable the effect.", ConfigEntryFlags.PreferHex | ConfigEntryFlags.Hidden)]
         public uint ArtObjectMagnitude { get; internal set; }
             = 0x74795;
 
         [ConfigValue("ArtObjectDuration", "ArtObject for Duration", 
             "The FormID of the ARTO that gets attached when in 'Duration' overcharge mode.\n" +
-            "Set to 0 to disable the effect.", ConfigEntryFlags.PreferHex)]
+            "Set to 0 to disable the effect.", ConfigEntryFlags.PreferHex | ConfigEntryFlags.Hidden)]
         public uint ArtObjectDuration { get; internal set; }
             = 0x6DE86;
 
         [ConfigValue("AutoCleanupDelay", "Auto-Cleanup Delay",
-            "Best to leave this alone.")]
+            "Best to leave this alone.", ConfigEntryFlags.Hidden)]
         public float AutoCleanupDelay { get; internal set; }
-            = 4.0f;
-
-        [ConfigValue("EquipBothFormID", "EquipBoth FormID", 
-            "Don't touch this.", ConfigEntryFlags.PreferHex | ConfigEntryFlags.Hidden)]
-        public uint EquipBothFormID { get; internal set; }
-            = 0x00013F45;
+            = 3.37f;
     }
 }

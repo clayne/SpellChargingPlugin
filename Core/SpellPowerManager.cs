@@ -1,6 +1,7 @@
 ﻿using NetScriptFramework;
 using NetScriptFramework.SkyrimSE;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using static NetScriptFramework.SkyrimSE.ActiveEffect;
@@ -14,57 +15,76 @@ namespace SpellChargingPlugin.Core
     /// </summary>
     public class SpellPowerManager
     {
-        /// <summary>
-        /// Percentage gain of power ("power per charge")
-        /// </summary>
-        public float Growth { get; set; }
+        private static SpellPowerManager _instance;
 
-        private ChargingSpell _managedSpell;
-        private bool _isConcentration;
-        private bool _hasDuration, _hasMagnitude;
-        private bool _needReset = false;
+        public static SpellPowerManager Instance => _instance ?? (_instance = new SpellPowerManager());
 
-        private SpellPowerManager() { }
-        public static SpellPowerManager Create(ChargingSpell spell)
+        private ConcurrentDictionary<Actor, ConcurrentSet<SpellItem>> _toReset = new ConcurrentDictionary<Actor, ConcurrentSet<SpellItem>>();
+
+        private SpellPowerManager()
         {
-            if (spell == null)
-                throw new ArgumentException("[SpellPowerManager] Can't assign NULL spell!");
+            ActiveEffectTracker.Instance.SpellEffectApplied += OnEffectApplied;
+        }
 
-            var ret = new SpellPowerManager()
+        /// <summary>
+        /// Handle resetting a spell's power after it has hit its target
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void OnEffectApplied(object sender, ActiveEffect e)
+        {
+            var offender = e.Caster;
+            if (!_toReset.ContainsKey(offender))
+                return;
+            var spellsToReset = _toReset[offender];
+            var spellItem = e.Item as SpellItem;
+            if (!spellsToReset.Contains(spellItem))
+                return;
+
+            Util.SimpleDeferredExecutor.Defer(() =>
             {
-                _managedSpell = spell,
-                _isConcentration = spell.Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration,
-                _hasDuration = SpellHelper.HasDuration(spell.Spell),
-                _hasMagnitude = SpellHelper.HasMagnitude(spell.Spell),
-            };
-            return ret;
+                ResetSpellPower(spellItem);
+                UnregisterForReset(offender, spellItem);
+                DebugHelper.Print($"[SpellPowerManager] ActiveEffect [{e.BaseEffect?.Name}] applied. Spell power reset.");
+            }, spellItem.FormId, 0.5f);
         }
 
         /// <summary>
         /// Grow Spell magnitudes and other associated attributes and effects by one rank
         /// </summary>
-        public void IncreasePower()
+        public void IncreasePower(ChargingSpell chargingSpell, int chargeLevel)
         {
-            _needReset = true;
-            float adjustedGrowth = Growth / ((float)Math.Sqrt(_managedSpell.ChargeLevel) + 1f);
-            foreach (var eff in _managedSpell.Spell.Effects)
+            var spell = chargingSpell.Spell;
+            var source = chargingSpell.Holder;
+            bool hasMag = SpellHelper.HasMagnitude(spell);
+            bool hasDur = SpellHelper.HasDuration(spell);
+            var growth = Settings.Instance.PowerPerCharge / 100f;
+            if (Settings.Instance.SkillAffectsPower)
+            {
+                var school = spell.Effects.FirstOrDefault()?.Effect?.AssociatedSkill;
+                if (school != null)
+                    growth *= (1f + chargingSpell.Holder.Actor.GetActorValue(school.Value) / 100f);
+            }
+            float adjustedGrowth = growth / ((float)Math.Sqrt(chargeLevel) + 1f);
+
+            foreach (var eff in spell.Effects)
             {
                 var basePower = GetBasePower(eff);
                 EffectPower mod = GetModifiedPower(eff);
 
-                switch (_managedSpell.Holder.Mode)
+                switch (source.Mode)
                 {
                     case ChargingActor.OperationMode.Magnitude:
-                        if (_hasMagnitude)
-                            mod.Magnitude += basePower.Magnitude * Growth;
-                        else if (_hasDuration)
-                            mod.Duration += basePower.Duration * Growth;
+                        if (hasMag)
+                            mod.Magnitude += basePower.Magnitude * growth;
+                        else if (hasDur)
+                            mod.Duration += basePower.Duration * growth;
                         break;
                     case ChargingActor.OperationMode.Duration:
-                        if (_hasDuration)
-                            mod.Duration += basePower.Duration * Growth;
-                        else if (_hasMagnitude)
-                            mod.Magnitude += basePower.Magnitude * Growth;
+                        if (hasDur)
+                            mod.Duration += basePower.Duration * growth;
+                        else if (hasMag)
+                            mod.Magnitude += basePower.Magnitude * growth;
                         break;
                 }
 
@@ -81,16 +101,75 @@ namespace SpellChargingPlugin.Core
                     mod.Range += basePower.Range * adjustedGrowth;
                 if (mod.Force != null)
                     mod.Force += basePower.Force * adjustedGrowth;
+            }
+        }
 
-                //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Name}] Eff: {eff.Effect.Name} Mod: {modifier}");
+        /// <summary>
+        /// Register a spell for being reset back to its base power upon applying its effect/damage
+        /// </summary>
+        /// <param name="spell"></param>
+        public void RegisterForReset(ChargingSpell chargingSpell)
+        {
+            if (!_toReset.TryGetValue(chargingSpell.Holder.Actor, out var spells))
+                _toReset.TryAdd(chargingSpell.Holder.Actor, spells = new ConcurrentSet<SpellItem>());
+            if (spells != null)
+                spells.TryAdd(chargingSpell.Spell);
+        }
+
+        public void UnregisterForReset(Actor offender, SpellItem spellItem)
+        {
+            if (!_toReset.ContainsKey(offender))
+                return;
+            _toReset[offender].TryRemove(spellItem);
+            if (_toReset[offender].IsEmpty)
+                _toReset.TryRemove(offender, out _);
+        }
+
+        /// <summary>
+        /// Apply modified power to the given spell
+        /// </summary>
+        /// <param name="chargingSpell"></param>
+        public void ApplyModifiers(ChargingSpell chargingSpell)
+        {
+            foreach (var eff in chargingSpell.Spell.Effects)
+            {
+                var mod = SpellHelper.GetModifiedPower(eff);
                 ApplyModPower(eff, mod);
                 ApplyModArea(eff, mod);
                 ApplyModSpeed(eff, mod);
                 ApplyModRange(eff, mod);
                 ApplyModForce(eff, mod);
 
-                if (_isConcentration)
-                    ApplyModActiveEffects(eff, mod);
+                if (chargingSpell.Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration)
+                    ApplyModActiveEffects(eff, mod, chargingSpell.Holder);
+            }
+        }
+
+        /// <summary>
+        /// Reset all spell effect magnitudes etc to their base power level
+        /// </summary>
+        public void ResetSpellPower(SpellItem spell)
+        {
+            foreach (var eff in spell.Effects)
+            {
+                var mod = GetBasePower(eff);
+                ApplyModPower(eff, mod);
+                ApplyModArea(eff, mod);
+                ApplyModSpeed(eff, mod);
+                ApplyModRange(eff, mod);
+            }
+        }
+
+        /// <summary>
+        /// Only reset the modifier
+        /// </summary>
+        /// <param name="spell"></param>
+        public void ResetSpellModifiers(SpellItem spell)
+        {
+            foreach (var eff in spell.Effects)
+            {
+                var mod = SpellHelper.GetModifiedPower(eff);
+                mod.ResetTo(SpellHelper.GetBasePower(eff));
             }
         }
 
@@ -119,25 +198,6 @@ namespace SpellChargingPlugin.Core
                 IntPtr fRangePtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x0C;
                 Memory.WriteFloat(fRangePtr, mod.Range.Value);
             }
-        }
-
-        /// <summary>
-        /// Reset all spell effect magnitudes etc to their base power level
-        /// </summary>
-        public void ResetPower()
-        {
-            if (!_needReset)
-                return;
-            foreach (var eff in _managedSpell.Spell.Effects)
-            {
-                var mod = GetModifiedPower(eff);
-                mod.ResetTo(GetBasePower(eff));
-                ApplyModPower(eff, mod);
-                ApplyModArea(eff, mod);
-                ApplyModSpeed(eff, mod);
-                ApplyModRange(eff, mod);
-            }
-            _needReset = false;
         }
 
         /// <summary>
@@ -203,7 +263,6 @@ namespace SpellChargingPlugin.Core
         {
             if (eff.Effect.MagicProjectile?.ProjectileData == null)
                 return;
-            DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] RefreshMisc");
 
             IntPtr fRangePtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x0C;
             IntPtr fCollisionRadiusPtr = eff.Effect.MagicProjectile.ProjectileData.Address + 0x6C;
@@ -213,7 +272,7 @@ namespace SpellChargingPlugin.Core
         /// Refresh ActiveEffects on targets affected by this effect (should only be needed with Concentration type spells)
         /// </summary>
         /// <param name="eff"></param>
-        private void ApplyModActiveEffects(EffectItem eff, EffectPower modifiedPower)
+        private void ApplyModActiveEffects(EffectItem eff, EffectPower modifiedPower, ChargingActor source)
         {
             //DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] RefreshActiveEffects");
             // Get all the actors affected by this effect
@@ -221,12 +280,12 @@ namespace SpellChargingPlugin.Core
             var myActiveEffects = ActiveEffectTracker.Instance
                 .Tracked()
                 .ForBaseEffect(myFID)
-                .FromOffender(_managedSpell.Holder.Actor.Cast<Character>())
+                .FromOffender(source.Actor.Cast<Character>())
                 .Where(e => e.Invalid == false)
                 .ToArray();
             if (myActiveEffects.Length == 0)
                 return;
-            DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}] Eff : {eff.Effect.Name} affects {myActiveEffects.Length} targets");
+            //DebugHelper.Print($"[SpellPowerManager] Eff : {eff.Effect.Name} affects {myActiveEffects.Length} targets");
             // Set Magnitude and call CalculateDurationAndMagnitude for each affected actor
             foreach (var victim in myActiveEffects)
             {
@@ -234,7 +293,7 @@ namespace SpellChargingPlugin.Core
                 {
                     if (MemoryObject.FromAddress<ActiveEffect>(victim.Effect) is ActiveEffect activeEffect)
                     {
-                        DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
+                        //DebugHelper.Print($"[SpellPowerManager:{eff.Effect.Name}] Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
 
                         victim.Magnitude = modifiedPower.Magnitude;
                         victim.Duration = modifiedPower.Duration;
@@ -247,13 +306,13 @@ namespace SpellChargingPlugin.Core
                     }
                     else
                     {
-                        DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] Invalid ActiveEffect pointer {victim.Effect.ToHexString()}!");
+                        DebugHelper.Print($"[SpellPowerManager:{eff.Effect.Name}] Invalid ActiveEffect pointer {victim.Effect.ToHexString()}!");
                         victim.Invalid = true;
                     }
                 }
                 catch (Exception ex)
                 {
-                    DebugHelper.Print($"[SpellPowerManager:{_managedSpell.Spell.Name}:{eff.Effect.Name}] THREW EXCEPTION! {ex.Message}");
+                    DebugHelper.Print($"[SpellPowerManager:{eff.Effect.Name}] THREW EXCEPTION! {ex.Message}");
                     victim.Invalid = true;
                 }
             }

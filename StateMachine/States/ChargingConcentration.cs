@@ -1,48 +1,38 @@
-﻿using NetScriptFramework;
-using NetScriptFramework.SkyrimSE;
+﻿using NetScriptFramework.SkyrimSE;
 using SpellChargingPlugin.Core;
-using SpellChargingPlugin.StateMachine;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SpellChargingPlugin.StateMachine.States
 {
-    public class Charging : State<ChargingSpell>
+    internal class ChargingConcentration : ChargingBase
     {
         private static int _chargingInstances = 0;
-        private float _accelerationFactor = 1f;
-        public Charging(ChargingSpell context) : base(context)
+
+        public ChargingConcentration(ChargingSpell context) : base(context)
         {
         }
 
-        /// <summary>
-        /// Increase magnitude, transition to Released or Idle states if neccessary
-        /// </summary>
-        /// <param name="elapsedSeconds"></param>
         protected override void OnUpdate(float elapsedSeconds)
         {
             var handState = SpellHelper.GetSpellAndState(_context.Holder.Actor, _context.Slot);
-            
+
             switch (handState?.State)
             {
-                case MagicCastingStates.Charging:
-                    break;
-                case MagicCastingStates.Charged:
                 case MagicCastingStates.Concentrating:
+                    float _accelerationFactor = 1f;
                     if (Settings.Instance.EnableAcceleration)
                         _accelerationFactor = (Settings.Instance.AccelerationHalfTime + this._timeInState) / Settings.Instance.AccelerationHalfTime;
-                    _context.UpdateCharge(elapsedSeconds * _accelerationFactor);
-                    break;
-                case MagicCastingStates.Released:
-                    TransitionTo(() => new Release(_context));
+                    _chargingTimer.Update(elapsedSeconds * _accelerationFactor);
+                    if (!_chargingTimer.HasElapsed(_inverseChargesPerSecond, out _))
+                        return;
+                    if (!_context.Holder.TryDrainMagicka(Settings.Instance.MagickaPerCharge))
+                        return;
+                    _context.AddCharge();
+                    SpellPowerManager.Instance.ApplyModifiers(_context);
                     break;
                 case MagicCastingStates.None:
                 case null:
                 default:
-                    TransitionTo(() => new Cancel(_context));
+                    TransitionTo(() => new Canceled(_context));
                     break;
             }
         }

@@ -2,9 +2,11 @@
 using NetScriptFramework.SkyrimSE;
 using NetScriptFramework.Tools;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpellChargingPlugin
@@ -45,7 +47,7 @@ namespace SpellChargingPlugin
             return toLoad;
         }
 
-        public class SimpleTimer
+        public sealed class SimpleTimer
         {
             private float _elapsedSeconds = 0f;
 
@@ -53,7 +55,7 @@ namespace SpellChargingPlugin
 
             public void Update(float elapsedSeconds)
             {
-                if (!Enabled) 
+                if (!Enabled)
                     return;
                 _elapsedSeconds += elapsedSeconds;
             }
@@ -72,6 +74,54 @@ namespace SpellChargingPlugin
                 if (reset)
                     _elapsedSeconds = 0.0f;
                 return true;
+            }
+        }
+
+        public sealed class SimpleDeferredExecutor
+        {
+            private static ConcurrentDictionary<uint, SimpleDeferredExecutor> _executors = new ConcurrentDictionary<uint, SimpleDeferredExecutor>();
+
+            private SimpleTimer _timer = new SimpleTimer();
+            private Action _action;
+            private float _deferTime;
+
+            public bool Completed { get; private set; }
+
+            private SimpleDeferredExecutor(Action action, float initialDefer = 0f)
+            {
+                _action = action;
+                _deferTime = initialDefer;
+            }
+
+            public static void Defer(Action action, uint ident, float time)
+            {
+                if (!_executors.TryGetValue(ident, out var exec))
+                    _executors.TryAdd(ident, new SimpleDeferredExecutor(action, time));
+                else
+                    Interlocked.Exchange(ref exec._deferTime, exec._deferTime + time);
+            }
+
+            public static void Update(float elapsedSeconds)
+            {
+                if (_executors.IsEmpty)
+                    return;
+                for (int i = 0; i < _executors.Count; i++)
+                {
+                    var exec = _executors.ElementAt(i);
+                    if (exec.Value.Completed)
+                    {
+                        _executors.TryRemove(exec.Key, out _);
+                        --i;
+                    }
+                    else
+                    {
+                        exec.Value._timer.Update(elapsedSeconds);
+                        if (!exec.Value._timer.HasElapsed(exec.Value._deferTime, out _))
+                            continue;
+                        exec.Value._action();
+                        exec.Value.Completed = true;
+                    }
+                }
             }
         }
 
