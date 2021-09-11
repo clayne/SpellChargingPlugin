@@ -50,6 +50,12 @@ namespace SpellChargingPlugin
             return toLoad;
         }
 
+        /// <summary>
+        /// Includes the character itself
+        /// </summary>
+        /// <param name="character"></param>
+        /// <param name="range"></param>
+        /// <returns></returns>
         public static IEnumerable<Character> GetCharactersInRange(Character character, float range)
         {
             var charCell = character.ParentCell;
@@ -60,7 +66,7 @@ namespace SpellChargingPlugin
                     .References?
                     .Where(ptr => ptr?.Value != null && ptr.Value is Character)
                     .Select(ptr => ptr.Value as Character)
-                    .Where(chr => chr != character && chr.Position.GetDistance(character.Position) <= range)
+                    .Where(chr => chr.Position.GetDistance(character.Position) <= range)
                     .ToHashSet();
                 return set;
             }

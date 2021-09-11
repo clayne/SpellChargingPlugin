@@ -60,7 +60,8 @@ namespace SpellChargingPlugin.StateMachine.States
         /// <param name="range"></param>
         private void Share(float range)
         {
-            foreach (var ally in Util.GetCharactersInRange(_context.Holder.Actor, range).Where(chr => !chr.IsDead && chr.IsPlayerTeammate).ToList())
+            var inRange = Util.GetCharactersInRange(_context.Holder.Actor, range);
+            foreach (var ally in inRange.Where(chr => !chr.IsDead && chr.IsPlayerTeammate && !chr.IsPlayer))
                 ally.CastSpell(_context.Spell, ally, null);
             MenuManager.ShowHUDMessage($"Share : {_context.Spell.Name}", null, false);
         }

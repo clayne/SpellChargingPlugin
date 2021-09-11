@@ -68,7 +68,9 @@ namespace SpellChargingPlugin.Core
         private void RotateOperationMode()
         {
             // block during charge to allow key to be used for Maintain & Share
-            if (!(_chargingSpellLeft?.CurrentState is StateMachine.States.Idle && _chargingSpellRight?.CurrentState is StateMachine.States.Idle))
+            if (_chargingSpellLeft != null && !(_chargingSpellLeft.CurrentState is StateMachine.States.Idle))
+                return;
+            if (_chargingSpellRight != null && !(_chargingSpellRight.CurrentState is StateMachine.States.Idle))
                 return;
 
             // simplified mode
