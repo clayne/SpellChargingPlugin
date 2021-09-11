@@ -26,13 +26,15 @@ namespace SpellChargingPlugin
             "Options: Magnitude, Duration\n" +
             "You can also switch between them ingame by pressing the hotkey.\n" +
             "If a spell does not have the prioritized attribute, it will charge the other one.\n" +
-            "If a spell has neither (Clairvoyance and other script-based spells), nothing will happen and no magicka will be spent.\n" +
-            "It is possible to switch priorities while in the middle of charging.")]
+            "If a spell has neither (Clairvoyance and other script-based spells), nothing will happen and no magicka will be spent.")]
         public string OperationMode { get; internal set; }
             = "Magnitude";
 
         [ConfigValue("HotKey", "Hotkey", 
-            "Key or key combination to toggle between modes.")]
+            "Key or key combination to access the various features depending on context.\n" +
+            "Pressing the hotkey while idle (not charging or casting) will toggle Overcharge Priority (see above).\n" +
+            "Holding the hotkey while charging a spell (but not dual casting) will trigger Spell Sharing and apply the spell to all nearby followers once you release it.\n" +
+            "Holding the hotkey while dual casting a spell will trigger Spell Maintenance and semi-permanently apply the spell to you, reducing your maximum Magicka while it is active. Dispel the maintained spell by triggering Spell Maintenance again with the same spell or overwrite it with another.")]
         public string HotKey { get; internal set; }
             = "Shift + G";
 
@@ -40,13 +42,13 @@ namespace SpellChargingPlugin
             "Time (in seconds) that a non-concentration spell must be held before it begins overcharging.\n" +
             "Set to 0 to begin overcharging immediately.")]
         public float PreChargeDelay { get; internal set; }
-            = 0.5f;
+            = 0.25f;
 
         [ConfigValue("PowerPerCharge", "Power Per Charge", 
             "One charge will raise power by this amount in percent.\n" +
             "Note: 'Spell Power' also includes a spell's projectile speed, size, explosion radius, range and impact force (if it has any of those). Those will charge at a slower rate than the two main ones.")]
         public float PowerPerCharge { get; internal set; }
-            = 10.0f;
+            = 5.0f;
 
         [ConfigValue("MagickaPerCharge", "Magicka Per Charge", 
             "How much Magicka does one charge cost? This is a flat value, not a percentage!")]
@@ -65,7 +67,7 @@ namespace SpellChargingPlugin
             = 3;
 
         [ConfigValue("ChargesPerParticle", "Charges Per Particle", 
-            "Spawn a charge indicator particle every #N charges. Setting this to 1 would spawn a particle on every new charge.\n" +
+            "Spawn a charge indicator particle every #N charges. Setting this to 1 will spawn a particle on every new charge.\n" +
             "Particle appearance depends on your mods (spell changes, custom spells, mesh changes, textures etc). Some spells may not spawn any visible particles at all.\n" +
             "Set to 0 to disable the particle system if you think it looks bad or to increase performance a little.")]
         public uint ChargesPerParticle { get; internal set; }
@@ -91,14 +93,14 @@ namespace SpellChargingPlugin
             "After charging for this long (in seconds), charging speed will double.\n" +
             "The acceleration is gradual and scales beyond this time, e.g. twice as fast after 5s, three times as fast after 10s, four times after 15s and so on.")]
         public float AccelerationHalfTime { get; internal set; }
-            = 5f;
+            = 3.37f;
 
         [ConfigValue("UpdatesPerSecond", "Updates Per Second", 
             "Controls how often the plugin updates its state.\n" +
             "Raise it up to your maximum FPS if you want the plugin to be more responsive and the particle effects to look a little smoother at a very small performance cost.\n" +
             "Should also probably increase this when you increase ChargesPerSecond and/or reduce AccelerationHalfTime.")]
         public uint UpdatesPerSecond { get; internal set; }
-            = 30;
+            = 24;
 
         [ConfigValue("MaxParticles", "Max Particles", 
             "Maximum number of particles to spawn per hand. Don't go too crazy.\n" +
@@ -132,6 +134,6 @@ namespace SpellChargingPlugin
         [ConfigValue("AutoCleanupDelay", "Auto-Cleanup Delay",
             "Best to leave this alone.", ConfigEntryFlags.Hidden)]
         public float AutoCleanupDelay { get; internal set; }
-            = 3.37f;
+            = 5.0f;
     }
 }

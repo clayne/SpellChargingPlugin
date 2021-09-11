@@ -3,9 +3,11 @@ using SpellChargingPlugin.Core;
 
 namespace SpellChargingPlugin.StateMachine.States
 {
-    public class ChargingFireAndForget : ChargingBase
+    internal class OverConcentrating : OverchargingBase
     {
-        public ChargingFireAndForget(ChargingSpell context) : base(context)
+        private static int _chargingInstances = 0;
+
+        public OverConcentrating(ChargingSpell context) : base(context)
         {
         }
 
@@ -15,7 +17,7 @@ namespace SpellChargingPlugin.StateMachine.States
 
             switch (handState?.State)
             {
-                case MagicCastingStates.Charged:
+                case MagicCastingStates.Concentrating:
                     float _accelerationFactor = 1f;
                     if (Settings.Instance.EnableAcceleration)
                         _accelerationFactor = (Settings.Instance.AccelerationHalfTime + this._timeInState) / Settings.Instance.AccelerationHalfTime;
@@ -25,9 +27,7 @@ namespace SpellChargingPlugin.StateMachine.States
                     if (!_context.Holder.TryDrainMagicka(Settings.Instance.MagickaPerCharge))
                         return;
                     _context.AddCharge();
-                    break;
-                case MagicCastingStates.Released:
-                    TransitionTo(() => new Released(_context));
+                    SpellPowerManager.Instance.ApplyModifiers(_context);
                     break;
                 case MagicCastingStates.None:
                 case null:
@@ -35,6 +35,19 @@ namespace SpellChargingPlugin.StateMachine.States
                     TransitionTo(() => new Canceled(_context));
                     break;
             }
+        }
+
+        // These SHOULD be enough to track whether or not the player is still firing spells and keep the "victims" inside
+        // ActiveEffectTracker alive until the player stops, at which point there SHOULD be no more ActiveEffects to update
+        // and the cache can be thrown away
+        protected override void OnEnterState()
+        {
+            ++_chargingInstances;
+        }
+        protected override void OnExitState()
+        {
+            if (--_chargingInstances == 0)
+                ActiveEffectTracker.Instance.Clear();
         }
     }
 }

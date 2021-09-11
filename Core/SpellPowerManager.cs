@@ -19,36 +19,6 @@ namespace SpellChargingPlugin.Core
 
         public static SpellPowerManager Instance => _instance ?? (_instance = new SpellPowerManager());
 
-        private ConcurrentDictionary<Actor, ConcurrentSet<SpellItem>> _toReset = new ConcurrentDictionary<Actor, ConcurrentSet<SpellItem>>();
-
-        private SpellPowerManager()
-        {
-            ActiveEffectTracker.Instance.SpellEffectApplied += OnEffectApplied;
-        }
-
-        /// <summary>
-        /// Handle resetting a spell's power after it has hit its target
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void OnEffectApplied(object sender, ActiveEffect e)
-        {
-            var offender = e.Caster;
-            if (!_toReset.ContainsKey(offender))
-                return;
-            var spellsToReset = _toReset[offender];
-            var spellItem = e.Item as SpellItem;
-            if (!spellsToReset.Contains(spellItem))
-                return;
-
-            Util.SimpleDeferredExecutor.Defer(() =>
-            {
-                ResetSpellPower(spellItem);
-                UnregisterForReset(offender, spellItem);
-                DebugHelper.Print($"[SpellPowerManager] ActiveEffect [{e.BaseEffect?.Name}] applied. Spell power reset.");
-            }, spellItem.FormId, 0.5f);
-        }
-
         /// <summary>
         /// Grow Spell magnitudes and other associated attributes and effects by one rank
         /// </summary>
@@ -102,27 +72,6 @@ namespace SpellChargingPlugin.Core
                 if (mod.Force != null)
                     mod.Force += basePower.Force * adjustedGrowth;
             }
-        }
-
-        /// <summary>
-        /// Register a spell for being reset back to its base power upon applying its effect/damage
-        /// </summary>
-        /// <param name="spell"></param>
-        public void RegisterForReset(ChargingSpell chargingSpell)
-        {
-            if (!_toReset.TryGetValue(chargingSpell.Holder.Actor, out var spells))
-                _toReset.TryAdd(chargingSpell.Holder.Actor, spells = new ConcurrentSet<SpellItem>());
-            if (spells != null)
-                spells.TryAdd(chargingSpell.Spell);
-        }
-
-        public void UnregisterForReset(Actor offender, SpellItem spellItem)
-        {
-            if (!_toReset.ContainsKey(offender))
-                return;
-            _toReset[offender].TryRemove(spellItem);
-            if (_toReset[offender].IsEmpty)
-                _toReset.TryRemove(offender, out _);
         }
 
         /// <summary>

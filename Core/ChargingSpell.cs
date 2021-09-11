@@ -42,6 +42,12 @@ namespace SpellChargingPlugin.Core
             if (!CanCharge)
                 return;
 
+            // dirty way to pre-cache base power
+            foreach (var eff in spell.Effects)
+            {
+                SpellHelper.GetBasePower(eff);
+            }
+
             RefreshParticleNode();
 
             // TODO: this is stupid, cache it or something
@@ -115,9 +121,9 @@ namespace SpellChargingPlugin.Core
             int localParticleCount = ChargeLevel / (int)Settings.Instance.ChargesPerParticle;
             int distanceFactor = (int)Math.Sqrt(localParticleCount);
 
-            float r1 = (5f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r2 = (5f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
-            float r3 = (5f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r1 = (8f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r2 = (8f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
+            float r3 = (8f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
 
             if (IsTwoHanded)
             {
@@ -130,7 +136,7 @@ namespace SpellChargingPlugin.Core
             int a2 = Randomizer.NextInt(-1, 1);
             int a3 = a1 == 0 && a2 == 0 ? 1 : Randomizer.NextInt(-1, 1);
 
-            var scale = Randomizer.NextInt(250, 500) * 0.001f * Settings.Instance.ParticleScale;
+            var scale = Randomizer.NextInt(333, 666) * 0.001f * Settings.Instance.ParticleScale;
             var fade = 0.8f;
 
             var translate = new Vector3D(r1, r2, r3 * 0.8f);
@@ -150,9 +156,9 @@ namespace SpellChargingPlugin.Core
                 newParticle.AddBehavior(new OrbitBehavior(newParticle, new Vector3D(), new Vector3D(a1, a2, a3), 1f));
                 newParticle.AddBehavior(new AimForwardBehavior(newParticle));
                 newParticle.AddBehavior(new BreatheBehavior(newParticle, 0.1f, 1f, 16f)
-                { Active = () => CurrentState is StateMachine.States.ChargingBase });
+                { Active = () => CurrentState is StateMachine.States.OverchargingBase });
                 newParticle.AddBehavior(new FadeBehavior(newParticle, 1.0f)
-                { Active = () => !(CurrentState is StateMachine.States.ChargingBase) });
+                { Active = () => !(CurrentState is StateMachine.States.OverchargingBase) });
 
                 _particleEngine.Add(newParticle);
             }
@@ -166,13 +172,17 @@ namespace SpellChargingPlugin.Core
             Holder.Actor.RestoreActorValue(ActorValueIndices.Magicka, toRefund);
         }
 
-        public void Reset()
+        public void Clean()
         {
-            ChargeLevel = 0;
+            Reset();
             _particleEngine.Clear();
             SpellPowerManager.Instance.ResetSpellModifiers(Spell);
             SpellPowerManager.Instance.ResetSpellPower(Spell);
-            SpellPowerManager.Instance.UnregisterForReset(Holder.Actor, Spell);
+        }
+
+        public void Reset()
+        {
+            ChargeLevel = 0;
         }
     }
 }

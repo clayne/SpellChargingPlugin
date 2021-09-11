@@ -13,10 +13,9 @@ namespace SpellChargingPlugin.StateMachine.States
 {
     public class Idle : State<ChargingSpell>
     {
-        private Util.SimpleTimer _preChargeControlTimer = new Util.SimpleTimer();
-
         public Idle(ChargingSpell context) : base(context)
         {
+            
         }
 
         protected override void OnUpdate(float elapsedSeconds)
@@ -30,15 +29,17 @@ namespace SpellChargingPlugin.StateMachine.States
                 case MagicCastingStates.Concentrating:
                     if (!Settings.Instance.AllowConcentrationSpells)
                         break;
-                    TransitionTo(() => new ChargingConcentration(_context));
+                    TransitionTo(() => new OverConcentrating(_context));
                     break;
-                case MagicCastingStates.Charged:
-                    _preChargeControlTimer.Update(elapsedSeconds);
-                    if (!_preChargeControlTimer.HasElapsed(Settings.Instance.PreChargeDelay, out _))
-                        return;
-                    TransitionTo(() => new ChargingFireAndForget(_context));
+                case MagicCastingStates.Charging:
+                    TransitionTo(() => new Charging(_context));
                     break;
             }
+        }
+
+        protected override void OnEnterState()
+        {
+            _context.Reset();
         }
     }
 }

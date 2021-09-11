@@ -10,11 +10,12 @@ using System.Threading.Tasks;
 
 namespace SpellChargingPlugin.StateMachine.States
 {
-    public abstract class ChargingBase : State<ChargingSpell>
+    public abstract class OverchargingBase : State<ChargingSpell>
     {
         protected readonly Util.SimpleTimer _chargingTimer = new Util.SimpleTimer();
         protected readonly float _inverseChargesPerSecond = 1f / Settings.Instance.ChargesPerSecond;
-        public ChargingBase(ChargingSpell context) : base(context)
+
+        public OverchargingBase(ChargingSpell context) : base(context)
         {
         }
     }

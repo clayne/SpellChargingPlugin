@@ -21,11 +21,13 @@ namespace SpellChargingPlugin.Core
         };
         public Character Actor { get; }
         public OperationMode Mode { get; private set; } = OperationMode.Disabled;
+        public bool IsHoldingKey => _hotKeyPress?.IsPressed() == true;
 
         private ChargingSpell _chargingSpellLeft;
         private ChargingSpell _chargingSpellRight;
-        
+
         private bool _leftEqualsRight = false;
+        private HotkeyPress _hotKeyPress;
 
         public ChargingActor(Character character)
         {
@@ -54,13 +56,10 @@ namespace SpellChargingPlugin.Core
             if (Actor.BaseForm.FormId != PlayerCharacter.Instance.BaseForm.FormId)
                 return;
 
-            DebugHelper.Print($"[ChargingActor] Register OnUpdateCamera");
-            
-
             if (!HotkeyBase.TryParse(Settings.Instance.HotKey, out var keys))
                 keys = new VirtualKeys[] { VirtualKeys.Shift, VirtualKeys.G };
-            var keyPress = new HotkeyPress(() => RotateOperationMode(), keys);
-            keyPress.Register();
+            _hotKeyPress = new HotkeyPress(() => RotateOperationMode(), keys);
+            _hotKeyPress.Register();
 
             // Having something like this would be nice
             //Events.OnEquipWeaponOrSpell.Register(arg => { });
@@ -68,19 +67,15 @@ namespace SpellChargingPlugin.Core
 
         private void RotateOperationMode()
         {
+            // block during charge to allow key to be used for Maintain & Share
+            if (!(_chargingSpellLeft?.CurrentState is StateMachine.States.Idle && _chargingSpellRight?.CurrentState is StateMachine.States.Idle))
+                return;
+
             // simplified mode
             if (Mode != OperationMode.Magnitude)
                 SetOperationMode(OperationMode.Magnitude);
             else
-            SetOperationMode(OperationMode.Duration);
-            //int cur = (int)Mode;
-            //int next = (cur + 1) % 3;
-            //OperationMode nextMode = (OperationMode)next;
-            //// only toggle between MAG and DUR while charging
-            //if (nextMode == OperationMode.Disabled && (_chargingSpellLeft?.CurrentState is StateMachine.States.Charging || _chargingSpellRight?.CurrentState is StateMachine.States.Charging))
-            //    nextMode = OperationMode.Magnitude;
-
-            //SetOperationMode(nextMode);
+                SetOperationMode(OperationMode.Duration);
         }
 
         public void RefreshSpellParticleNodes()
@@ -173,7 +168,7 @@ namespace SpellChargingPlugin.Core
         /// <param name="spell"></param>
         private void ClearSpell(ref ChargingSpell spell)
         {
-            spell?.Reset();
+            spell?.Clean();
             spell = null;
         }
 
@@ -190,14 +185,12 @@ namespace SpellChargingPlugin.Core
         }
 
         /// <summary>
-        /// Check if the actor is dual casting (same spell in both hands, dual casting perk, casting both)
+        /// Check if the character is dual casting (same spell in both hands, dual casting perk, casting both)
         /// </summary>
-        /// <param name="actor"></param>
         /// <returns></returns>
         public bool IsDualCasting()
         {
-            var res = Memory.InvokeCdecl(new IntPtr(0x140632060).FromBase(), Actor.Cast<Actor>());
-            return res.ToBool();
+            return Memory.InvokeThisCall(Actor.Cast<Character>(), Util.addr_ActorIsDualCasting).ToBool();
         }
     }
 }

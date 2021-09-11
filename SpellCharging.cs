@@ -5,6 +5,7 @@ using SpellChargingPlugin.Core;
 using SpellChargingPlugin.ParticleSystem;
 using System;
 using System.Linq;
+using System.Text;
 
 namespace SpellChargingPlugin
 {
@@ -15,14 +16,14 @@ namespace SpellChargingPlugin
         public override string Author => "m3ttwur5t";
         public override int Version => 1;
 
-        private static Timer _gameActiveTimer = null;
-        private static long? _lastOnFrameTime = null;
         private static float _timePerUpdate = 1.0f / Math.Max(Settings.Instance.UpdatesPerSecond, 1);
         private static TESCameraStates _lastCameraState;
 
         private static ChargingActor _chargingPlayer;
         private static Util.SimpleTimer _actorUpdateControlTimer = new Util.SimpleTimer();
         private static Util.SimpleTimer _activeEffectPurgeControlTimer = new Util.SimpleTimer();
+
+        private static IntPtr addr_TimeSinceFrame = NetScriptFramework.Main.GameInfo.GetAddressOf(516940);
 
         /// <summary>
         /// NetFramework entry
@@ -47,17 +48,12 @@ namespace SpellChargingPlugin
         /// </summary>
         private static void HookAndRegister()
         {
-            _gameActiveTimer = new Timer();
-            _gameActiveTimer.Start();
-
             Events.OnFrame.Register(e =>
             {
-                long now = _gameActiveTimer.Time;
-                long elapsedMilliSeconds = 0;
-                if (_lastOnFrameTime.HasValue)
-                    elapsedMilliSeconds = now - _lastOnFrameTime.Value;
-                _lastOnFrameTime = now;
-                Update(elapsedMilliSeconds / 1000.0f);
+                float diff = Memory.ReadFloat(addr_TimeSinceFrame);
+                if (diff <= 0.0f)
+                    return;
+                Update(diff);
             });
 
             Events.OnUpdateCamera.Register(e =>
@@ -117,18 +113,15 @@ namespace SpellChargingPlugin
                             .ForVictim(victimPtr)
                             .WithActiveEffect(activeEffectPtr)
                             .WithBaseEffectID(activeEffect.EffectData.Effect.FormId);
-                    }
-                    else
-                    {
-                        // Damaging spells, despite having a positive magnitute, apparently switch to negative magnitudes on their effects?
-                        // Makes sense for "valuemodifier" types, I guess. This approach misbehaves sometimes.
-                        if (magnitude < 0f)
-                            tracked.Sign = -1;
-                        Memory.WriteFloat(activeEffectPtr + 0x78, tracked.Magnitude * tracked.Sign, true);
-                        Memory.WriteFloat(activeEffectPtr + 0x74, tracked.Duration, true);
+                        return;
                     }
 
-                    ActiveEffectTracker.Instance.OnEffectApplied(activeEffect);
+                    // Damaging spells, despite having a positive magnitute, apparently switch to negative magnitudes on their effects?
+                    // Makes sense for "valuemodifier" types, I guess. This approach misbehaves sometimes.
+                    if (magnitude < 0f)
+                        tracked.Sign = -1;
+                    Memory.WriteFloat(activeEffectPtr + 0x78, tracked.Magnitude * tracked.Sign, true);
+                    Memory.WriteFloat(activeEffectPtr + 0x74, tracked.Duration, true);
                     //DebugHelper.Print($"Updated ActiveEffect {activeEffectPtr.ToHexString()} MAG: {Memory.ReadFloat(activeEffectPtr + 0x78)} DUR: {Memory.ReadFloat(activeEffectPtr + 0x74)}");
                 }
             });

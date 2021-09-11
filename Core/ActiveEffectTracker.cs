@@ -18,8 +18,6 @@ namespace SpellChargingPlugin.Core
         private static ActiveEffectTracker _instance;
         public static ActiveEffectTracker Instance => _instance ?? (_instance = new ActiveEffectTracker());
 
-        public event EventHandler<ActiveEffect> SpellEffectApplied;
-
         private ConcurrentDictionary<IntPtr, ConcurrentSet<ActiveEffectHolder>> _trackedEffects = new ConcurrentDictionary<IntPtr, ConcurrentSet<ActiveEffectHolder>>();
         private ActiveEffectTracker() { }
 
@@ -56,12 +54,6 @@ namespace SpellChargingPlugin.Core
                 _trackedEffects.TryRemove(item.Effect,out var _);
             }
         }
-
-        public void OnEffectApplied(ActiveEffect activeEffect)
-        {
-            SpellEffectApplied?.Invoke(this, activeEffect);
-        }
-
 
         public sealed class TrackingResult : IEnumerable<ActiveEffectHolder>
         {

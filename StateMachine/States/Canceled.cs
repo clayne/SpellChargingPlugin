@@ -22,7 +22,7 @@ namespace SpellChargingPlugin.StateMachine.States
         {
             if (_context.Spell.SpellData.CastingType != NetScriptFramework.SkyrimSE.EffectSettingCastingTypes.Concentration)
                 _context.Refund();
-            _context.Reset();
+            _context.Clean();
             TransitionTo(() => new Idle(_context));
         }
     }

@@ -1,13 +1,13 @@
 ﻿using NetScriptFramework.SkyrimSE;
+using NetScriptFramework.Tools;
 using SpellChargingPlugin.Core;
 
 namespace SpellChargingPlugin.StateMachine.States
 {
-    internal class ChargingConcentration : ChargingBase
+    public class Overcharging : OverchargingBase
     {
-        private static int _chargingInstances = 0;
-
-        public ChargingConcentration(ChargingSpell context) : base(context)
+        private bool _isDualCharge;
+        public Overcharging(ChargingSpell context) : base(context)
         {
         }
 
@@ -15,9 +15,12 @@ namespace SpellChargingPlugin.StateMachine.States
         {
             var handState = SpellHelper.GetSpellAndState(_context.Holder.Actor, _context.Slot);
 
+            // for some reason IsDualCasting does not always return true even if you are dual casting??? just keep checking
+            _isDualCharge = _isDualCharge || _context.Holder.IsDualCasting();
+
             switch (handState?.State)
             {
-                case MagicCastingStates.Concentrating:
+                case MagicCastingStates.Charged:
                     float _accelerationFactor = 1f;
                     if (Settings.Instance.EnableAcceleration)
                         _accelerationFactor = (Settings.Instance.AccelerationHalfTime + this._timeInState) / Settings.Instance.AccelerationHalfTime;
@@ -27,7 +30,9 @@ namespace SpellChargingPlugin.StateMachine.States
                     if (!_context.Holder.TryDrainMagicka(Settings.Instance.MagickaPerCharge))
                         return;
                     _context.AddCharge();
-                    SpellPowerManager.Instance.ApplyModifiers(_context);
+                    break;
+                case MagicCastingStates.Released:
+                    TransitionTo(() => new Released(_context, _isDualCharge));
                     break;
                 case MagicCastingStates.None:
                 case null:
@@ -35,19 +40,6 @@ namespace SpellChargingPlugin.StateMachine.States
                     TransitionTo(() => new Canceled(_context));
                     break;
             }
-        }
-
-        // These SHOULD be enough to track whether or not the player is still firing spells and keep the "victims" inside
-        // ActiveEffectTracker alive until the player stops, at which point there SHOULD be no more ActiveEffects to update
-        // and the cache can be thrown away
-        protected override void OnEnterState()
-        {
-            ++_chargingInstances;
-        }
-        protected override void OnExitState()
-        {
-            if (--_chargingInstances == 0)
-                ActiveEffectTracker.Instance.Clear();
         }
     }
 }
