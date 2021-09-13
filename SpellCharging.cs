@@ -16,6 +16,8 @@ namespace SpellChargingPlugin
         public override string Author => "m3ttwur5t";
         public override int Version => 1;
 
+        public static CachedFormList FormList { get; private set; }
+
         private static float _timePerUpdate = 1.0f / Math.Max(Settings.Instance.UpdatesPerSecond, 1);
         private static TESCameraStates _lastCameraState;
 
@@ -37,6 +39,16 @@ namespace SpellChargingPlugin
             return true;
         }
 
+        private static void CacheFormList()
+        {
+            FormList = CachedFormList.TryParse("801:SpellChargingPlugin.esp", "Overcharge", "EffectForm");
+            if (FormList == null)
+                throw new Exception("Failed to parse FormList from plugin SpellChargingPlugin.esp");
+            DebugHelper.Print($"FormList cached with {FormList.All.Count} entries:");
+            foreach (var item in FormList.All)
+                DebugHelper.Print($"  {item}");
+        }
+
         private static void SetLogFile()
         {
             var logFile = new LogFile("SpellChargingPlugin", LogFileFlags.AutoFlush | LogFileFlags.IncludeTimestampInLine);
@@ -48,6 +60,11 @@ namespace SpellChargingPlugin
         /// </summary>
         private static void HookAndRegister()
         {
+            Events.OnMainMenu.Register(e =>
+            {
+                CacheFormList();
+            }, 0, 1);
+
             Events.OnFrame.Register(e =>
             {
                 float diff = Memory.ReadFloat(addr_TimeSinceFrame);
