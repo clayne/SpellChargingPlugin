@@ -23,8 +23,6 @@ namespace SpellChargingPlugin
         private static Util.SimpleTimer _actorUpdateControlTimer = new Util.SimpleTimer();
         private static Util.SimpleTimer _activeEffectPurgeControlTimer = new Util.SimpleTimer();
 
-        private static IntPtr addr_TimeSinceFrame = NetScriptFramework.Main.GameInfo.GetAddressOf(516940);
-
         /// <summary>
         /// NetFramework entry
         /// </summary>
@@ -50,7 +48,7 @@ namespace SpellChargingPlugin
         {
             Events.OnFrame.Register(e =>
             {
-                float diff = Memory.ReadFloat(addr_TimeSinceFrame);
+                float diff = Memory.ReadFloat(Util.addr_TimeSinceFrame);
                 if (diff <= 0.0f)
                     return;
                 Update(diff);

@@ -5,7 +5,7 @@ namespace SpellChargingPlugin.StateMachine.States
 {
     internal class OverConcentrating : OverchargingBase
     {
-        private static int _chargingInstances = 0;
+        public static int InstanceCount { get; private set; } = 0;
 
         public OverConcentrating(ChargingSpell context) : base(context)
         {
@@ -42,11 +42,11 @@ namespace SpellChargingPlugin.StateMachine.States
         // and the cache can be thrown away
         protected override void OnEnterState()
         {
-            ++_chargingInstances;
+            ++InstanceCount;
         }
         protected override void OnExitState()
         {
-            if (--_chargingInstances == 0)
+            if (--InstanceCount == 0)
                 ActiveEffectTracker.Instance.Clear();
         }
     }
