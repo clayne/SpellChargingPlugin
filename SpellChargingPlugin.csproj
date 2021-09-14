@@ -55,6 +55,7 @@
     <Compile Include="Core\ActiveEffectTracker.cs" />
     <Compile Include="Core\ChargingActor.cs" />
     <Compile Include="Core\ChargingSpell.cs" />
+    <Compile Include="Core\MaintainedSpell.cs" />
     <Compile Include="Core\SpellPowerManager.cs" />
     <Compile Include="Hotkey.cs" />
     <Compile Include="ParticleSystem\Behaviors\BreatheBehavior.cs" />

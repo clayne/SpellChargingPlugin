@@ -80,7 +80,11 @@ namespace SpellChargingPlugin.Core
         /// <param name="chargingSpell"></param>
         public void ApplyModifiers(ChargingSpell chargingSpell)
         {
-            foreach (var eff in chargingSpell.Spell.Effects)
+            ApplyModifiers(chargingSpell.Spell, chargingSpell);
+        }
+        public void ApplyModifiers(SpellItem spell, ChargingSpell chargingSpell = null)
+        {
+            foreach (var eff in spell.Effects)
             {
                 var mod = SpellHelper.GetModifiedPower(eff);
                 ApplyModPower(eff, mod);
@@ -89,7 +93,7 @@ namespace SpellChargingPlugin.Core
                 ApplyModRange(eff, mod);
                 ApplyModForce(eff, mod);
 
-                if (chargingSpell.Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration)
+                if (chargingSpell != null && chargingSpell.Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration)
                     ApplyModActiveEffects(eff, mod, chargingSpell.Holder);
             }
         }

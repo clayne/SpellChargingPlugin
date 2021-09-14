@@ -23,8 +23,9 @@ namespace SpellChargingPlugin.Core
         public OperationMode Mode { get; private set; } = OperationMode.Disabled;
         public bool IsHoldingKey => _hotKeyPress?.IsPressed() == true;
 
-        private ChargingSpell _chargingSpellLeft;
-        private ChargingSpell _chargingSpellRight;
+        private ChargingSpell _chargingSpellLeft = null;
+        private ChargingSpell _chargingSpellRight = null;
+        private MaintainedSpell _maintainedSpell = null;
 
         private bool _leftEqualsRight = false;
         private HotkeyPress _hotKeyPress;
@@ -37,6 +38,30 @@ namespace SpellChargingPlugin.Core
             if (!Enum.TryParse<OperationMode>(Settings.Instance.OperationMode, out var mode))
                 mode = OperationMode.Magnitude;
             SetOperationMode(mode);
+
+            _maintainedSpell = MaintainedSpell.TryRestore(this);
+        }
+
+        /// <summary>
+        /// Allies will cast the spell
+        /// </summary>
+        /// <param name="spell"></param>
+        /// <param name="range"></param>
+        internal void ShareSpell(SpellItem spell, float range)
+        {
+            var inRange = Util.GetCharactersInRange(Actor, range);
+            foreach (var ally in inRange.Where(chr => !chr.IsDead && chr.IsPlayerTeammate && !chr.IsPlayer))
+                ally.CastSpell(spell, ally, Actor);
+            MenuManager.ShowHUDMessage($"Share : {spell.Name}", null, false);
+        }
+
+        internal void MaintainSpell(ChargingSpell chargingSpell)
+        {
+            if (_maintainedSpell != null)
+                _maintainedSpell.Dispel();
+            var newMSpell = new MaintainedSpell(this, chargingSpell.Spell);
+            newMSpell.Apply(chargingSpell.ChargeLevel);
+            _maintainedSpell = newMSpell;
         }
 
         /// <summary>
@@ -58,22 +83,29 @@ namespace SpellChargingPlugin.Core
 
             if (!HotkeyBase.TryParse(Settings.Instance.HotKey, out var keys))
                 keys = new VirtualKeys[] { VirtualKeys.Shift, VirtualKeys.G };
-            _hotKeyPress = new HotkeyPress(() => RotateOperationMode(), keys);
+            _hotKeyPress = new HotkeyPress(() => HandleContextAwareKey(), keys);
             _hotKeyPress.Register();
 
             // Having something like this would be nice
             //Events.OnEquipWeaponOrSpell.Register(arg => { });
         }
 
-        private void RotateOperationMode()
+        private void HandleContextAwareKey()
         {
-            // block during charge to allow key to be used for Maintain & Share
+            // dispel Maintain when hands down and no spells equipped
+            if(!Actor.IsWeaponDrawn && _chargingSpellLeft == null && _chargingSpellRight == null && _maintainedSpell != null)
+            {
+                _maintainedSpell.Dispel();
+                return;
+            }
+
+            // use hotkey for Maintain & Share once charging/casting has begun
             if (_chargingSpellLeft != null && !(_chargingSpellLeft.CurrentState is StateMachine.States.Idle))
                 return;
             if (_chargingSpellRight != null && !(_chargingSpellRight.CurrentState is StateMachine.States.Idle))
                 return;
 
-            // simplified mode
+            // swutch between Magnitude and Duration mode otherwise
             if (Mode != OperationMode.Magnitude)
                 SetOperationMode(OperationMode.Magnitude);
             else
@@ -112,6 +144,14 @@ namespace SpellChargingPlugin.Core
         public void Update(float elapsedSeconds)
         {
             HotkeyBase.UpdateAll();
+
+            if (_maintainedSpell != null)
+            {
+                _maintainedSpell.Update(elapsedSeconds);
+                if (_maintainedSpell.Dispelled)
+                    _maintainedSpell = null;
+            }
+
             if (Mode == OperationMode.Disabled)
                 return;
             AssignSpellsIfNecessary();
@@ -185,6 +225,8 @@ namespace SpellChargingPlugin.Core
             DebugHelper.Print($"[ChargingActor] Hand: {handSlot} -> {spellItem?.Name}");
             return new ChargingSpell(this, spellItem, handSlot);
         }
+
+
 
         /// <summary>
         /// Check if the character is dual casting (same spell in both hands, dual casting perk, casting both)

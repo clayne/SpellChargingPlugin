@@ -120,6 +120,22 @@ namespace SpellChargingPlugin
             return new SpellHandState (spellState, spellInHand, hand);
         }
 
+        public static SpellItem LoadSpellFromAV(ActorValueIndices actorValue)
+        {
+            var av = PlayerCharacter.Instance.GetBaseActorValue(actorValue);
+            var asUint = BitConverter.ToUInt32(BitConverter.GetBytes(av), 0);
+            DebugHelper.Print($"[Maintain] Retrieve AV {actorValue} : {av} = {asUint}");
+            return TESForm.LookupFormById(asUint) as SpellItem;
+        }
+
+        public static void StoreSpellInAV(SpellItem spell, ActorValueIndices actorValue)
+        {
+            var fid = spell?.FormId ?? 0u;
+            var asFloat = BitConverter.ToSingle(BitConverter.GetBytes(fid), 0);
+            DebugHelper.Print($"[Maintain] Put AV {actorValue} : {fid} = {asFloat}");
+            PlayerCharacter.Instance.SetActorValue(actorValue, asFloat);
+        }
+
         /// <summary>
         /// Represents a Spell and its State in an actor's hand
         /// </summary>
