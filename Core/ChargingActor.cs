@@ -102,7 +102,7 @@ namespace SpellChargingPlugin.Core
             // use hotkey for Maintain & Share once charging/casting has begun
             if (_chargingSpellLeft != null && !(_chargingSpellLeft.CurrentState is StateMachine.States.Idle))
                 return;
-            if (_chargingSpellRight != null && !(_chargingSpellRight.CurrentState is StateMachine.States.Idle))
+            if (!_leftEqualsRight && _chargingSpellRight != null && !(_chargingSpellRight.CurrentState is StateMachine.States.Idle))
                 return;
 
             // swutch between Magnitude and Duration mode otherwise
