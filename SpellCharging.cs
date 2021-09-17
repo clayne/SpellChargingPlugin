@@ -71,6 +71,13 @@ namespace SpellChargingPlugin
                 Update(diff);
             });
 
+            // can i even register twice? don't want to have this inside the main loop
+            Events.OnFrame.Register(e =>
+            {
+                if (_chargingPlayer == null)
+                    _chargingPlayer = new ChargingActor(PlayerCharacter.Instance);
+            }, 0, 1);
+
             Events.OnUpdateCamera.Register(e =>
             {
                 var id = e.Camera.State.Id;
@@ -102,10 +109,21 @@ namespace SpellChargingPlugin
                     var offenderPtr = ctx.DX;
                     var victimPtr = ctx.R8;
 
+                    // any active effects that needs to be tracked (for magnitude updates) will ALWAYS have a source CHARACTER and a target CHARACTER (creature or another npc)
+                    if (activeEffectPtr == IntPtr.Zero || offenderPtr == IntPtr.Zero || victimPtr == IntPtr.Zero)
+                        return;
                     var activeEffect = MemoryObject.FromAddress<ActiveEffect>(activeEffectPtr);
                     if (activeEffect == null)
                         return;
+                    var offendingCharacter = MemoryObject.FromAddress<Character>(offenderPtr);
+                    if (offendingCharacter == null)
+                        return;
+                    var victimCharacter = MemoryObject.FromAddress<Character>(victimPtr);
+                    if (victimCharacter == null)
+                        return;
 
+                    // 5 seconds between purges too long?
+                    // does purging even help with the spell randomly glitching out when the active effect pointer turns invalid for whatever reason?
                     if (_activeEffectPurgeControlTimer.HasElapsed(5.0f, out var _))
                         ActiveEffectTracker.Instance.PurgeInvalids();
 
@@ -149,15 +167,15 @@ namespace SpellChargingPlugin
             if (main?.IsGamePaused != false)
                 return;
 
+            // update timers every frame
             _actorUpdateControlTimer.Update(elapsedSeconds);
             _activeEffectPurgeControlTimer.Update(elapsedSeconds);
-
-            if (_chargingPlayer == null)
-                _chargingPlayer = new ChargingActor(PlayerCharacter.Instance);
 
             if (!_actorUpdateControlTimer.HasElapsed(_timePerUpdate, out var elapsed))
                 return;
 
+            // update logic according to the update frequency setting
+            HotkeyBase.UpdateAll();
             Util.SimpleDeferredExecutor.Update(elapsed);
             _chargingPlayer.Update(elapsed);
         }

@@ -120,6 +120,11 @@ namespace SpellChargingPlugin
             return new SpellHandState (spellState, spellInHand, hand);
         }
 
+        /// <summary>
+        /// Pray another mod doesn't read/write to your ActorValue
+        /// </summary>
+        /// <param name="actorValue"></param>
+        /// <returns></returns>
         public static SpellItem LoadSpellFromAV(ActorValueIndices actorValue)
         {
             var av = PlayerCharacter.Instance.GetBaseActorValue(actorValue);
@@ -127,7 +132,6 @@ namespace SpellChargingPlugin
             DebugHelper.Print($"[Maintain] Retrieve AV {actorValue} : {av} = {asUint}");
             return TESForm.LookupFormById(asUint) as SpellItem;
         }
-
         public static void StoreSpellInAV(SpellItem spell, ActorValueIndices actorValue)
         {
             var fid = spell?.FormId ?? 0u;

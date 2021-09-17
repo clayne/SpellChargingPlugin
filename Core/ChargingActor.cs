@@ -50,6 +50,7 @@ namespace SpellChargingPlugin.Core
         internal void ShareSpell(SpellItem spell, float range)
         {
             var inRange = Util.GetCharactersInRange(Actor, range);
+            // TODO: summoned creatures do not count as "player teammate", but probably should (or not? too strong otherwise?)
             foreach (var ally in inRange.Where(chr => !chr.IsDead && chr.IsPlayerTeammate && !chr.IsPlayer))
                 ally.CastSpell(spell, ally, Actor);
             MenuManager.ShowHUDMessage($"Share : {spell.Name}", null, false);
@@ -143,8 +144,6 @@ namespace SpellChargingPlugin.Core
         /// <param name="elapsedSeconds"></param>
         public void Update(float elapsedSeconds)
         {
-            HotkeyBase.UpdateAll();
-
             if (_maintainedSpell != null)
             {
                 _maintainedSpell.Update(elapsedSeconds);

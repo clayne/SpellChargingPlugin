@@ -4,6 +4,10 @@ using System.Linq;
 
 namespace SpellChargingPlugin.Core
 {
+    /// <summary>
+    /// very bad implemtation
+    /// TODO: use separate formlist or global vars instead of actor value that might be already in use by another mod, will also enable multiple maintained spells
+    /// </summary>
     internal class MaintainedSpell
     {
         private const int largeDur = 60 * 60 * 24 * 356 * 7;
@@ -45,6 +49,10 @@ namespace SpellChargingPlugin.Core
             }
         }
 
+        /// <summary>
+        /// doesn't actually apply the spell power modifier, but probably should
+        /// </summary>
+        /// <param name="chargeLevel"></param>
         public void Apply(int chargeLevel)
         {
             var maintainCost = chargeLevel * Settings.Instance.MagickaPerCharge + _spell.SpellData.CostOverride * 0.5f;
