@@ -12,7 +12,7 @@ namespace SpellChargingPlugin.StateMachine.States
 {
     public abstract class OverchargingBase : State<ChargingSpell>
     {
-        protected readonly Util.SimpleTimer _chargingTimer = new Util.SimpleTimer();
+        protected readonly Utilities.SimpleTimer _chargingTimer = new Utilities.SimpleTimer();
         protected readonly float _inverseChargesPerSecond = 1f / Settings.Instance.ChargesPerSecond;
 
         public OverchargingBase(ChargingSpell context) : base(context)

@@ -50,8 +50,8 @@ namespace SpellChargingPlugin.Core
             var iv = _trackedEffects.SelectMany(kv => kv.Value).Where(v => v.Invalid).ToArray();
             foreach (var item in iv)
             {
-                DebugHelper.Print($"[ActiveEffectTracker] Purging invalid entry {item.Effect.ToHexString()}");
-                _trackedEffects.TryRemove(item.Effect,out var _);
+                DebugHelper.Print($"[ActiveEffectTracker] Purging invalid entry {item.EffectPtr.ToHexString()}");
+                _trackedEffects.TryRemove(item.EffectPtr,out var _);
             }
         }
 
@@ -65,13 +65,13 @@ namespace SpellChargingPlugin.Core
 
             public TrackingResult FromOffender(IntPtr offenderPtr)
             {
-                _victims = _victims.Where(e => e.Offender == offenderPtr);
+                _victims = _victims.Where(e => e.OffenderPtr == offenderPtr);
                 return this;
             }
 
             public TrackingResult ForVictim(IntPtr victimPtr)
             {
-                _victims = _victims.Where(e => e.Me == victimPtr);
+                _victims = _victims.Where(e => e.SelfPtr == victimPtr);
                 return this;
             }
 
@@ -102,13 +102,13 @@ namespace SpellChargingPlugin.Core
 
             public TrackingSetup FromOffender(IntPtr offenderPtr)
             {
-                _entry.Offender = offenderPtr;
+                _entry.OffenderPtr = offenderPtr;
                 return this;
             }
 
             public TrackingSetup ForVictim(IntPtr victimPtr)
             {
-                _entry.Me = victimPtr;
+                _entry.SelfPtr = victimPtr;
                 return this;
             }
 
@@ -120,15 +120,15 @@ namespace SpellChargingPlugin.Core
 
             public TrackingSetup WithActiveEffect(IntPtr activeEffect)
             {
-                _entry.Effect = activeEffect;
+                _entry.EffectPtr = activeEffect;
                 return this;
             }
         }
         public sealed class ActiveEffectHolder
         {
-            public IntPtr Effect { get; set; }
-            public IntPtr Me { get; set; }
-            public IntPtr Offender { get; set; }
+            public IntPtr EffectPtr { get; set; }
+            public IntPtr SelfPtr { get; set; }
+            public IntPtr OffenderPtr { get; set; }
             public float Magnitude { get; set; }
             public int Sign { get; set; } = 1;
             public float Duration { get; set; }

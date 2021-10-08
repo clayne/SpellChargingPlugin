@@ -16,14 +16,11 @@ namespace SpellChargingPlugin
         public override string Author => "m3ttwur5t";
         public override int Version => 1;
 
-        public static CachedFormList FormList { get; private set; }
-
-        private static float _timePerUpdate = 1.0f / Math.Max(Settings.Instance.UpdatesPerSecond, 1);
-        private static TESCameraStates _lastCameraState;
+        private static float _timePerUpdate = 1.0f / Math.Max(Settings.Instance.UpdatesPerSecond, 1.0f);
 
         private static ChargingActor _chargingPlayer;
-        private static Util.SimpleTimer _actorUpdateControlTimer = new Util.SimpleTimer();
-        private static Util.SimpleTimer _activeEffectPurgeControlTimer = new Util.SimpleTimer();
+        private static Utilities.SimpleTimer _actorUpdateControlTimer = new Utilities.SimpleTimer();
+        private static Utilities.SimpleTimer _activeEffectPurgeControlTimer = new Utilities.SimpleTimer();
 
         /// <summary>
         /// NetFramework entry
@@ -32,78 +29,37 @@ namespace SpellChargingPlugin
         /// <returns></returns>
         protected override bool Initialize(bool loadedAny)
         {
-            SetLogFile();
-            HookAndRegister();
+            SetupLogFile();
+            RegisterHandlers();
             return true;
         }
 
-        private static void CacheFormList()
-        {
-            FormList = CachedFormList.TryParse("801:SpellChargingPlugin.esp", "Overcharge", "EffectForm");
-            if (FormList == null)
-                throw new Exception("Failed to parse FormList from plugin SpellChargingPlugin.esp");
-            DebugHelper.Print($"FormList cached with {FormList.All.Count} entries:");
-            foreach (var item in FormList.All)
-                DebugHelper.Print($"  {item}");
-        }
-
-        private static void SetLogFile()
+        private static void SetupLogFile()
         {
             var logFile = new LogFile("SpellChargingPlugin", LogFileFlags.AutoFlush | LogFileFlags.IncludeTimestampInLine);
             DebugHelper.SetLogFile(logFile);
         }
 
-        /// <summary>
-        /// Register for OnFrame to avoid any lag and make sure things are taken care of asap
-        /// </summary>
-        private static void HookAndRegister()
+        private static void RegisterHandlers()
         {
-            Events.OnMainMenu.Register(e =>
-            {
-                CacheFormList();
-            }, 0, 1);
+            Events.OnFrame.Register(
+                handler:    e => Update(Memory.ReadFloat(Utilities.Addresses.addr_TimeSinceFrame)));
 
-            Events.OnFrame.Register(e =>
-            {
-                float diff = Memory.ReadFloat(Util.addr_TimeSinceFrame);
-                if (diff <= 0.0f)
-                    return;
-                Update(diff);
-            });
+            // initialize the player's ChargingActor instance on game load
+            Events.OnFrame.Register(
+                handler: e => _chargingPlayer = _chargingPlayer ?? ChargingActor.Create(
+                    new ChargingActor.ChargingActorCreationArgs() {
+                        ParentCharacter = PlayerCharacter.Instance
+                    }), 
+                priority: 0,
+                count: 1);
 
-            // can i even register twice? don't want to have this inside the main loop
-            Events.OnFrame.Register(e =>
-            {
-                if (_chargingPlayer == null)
-                    _chargingPlayer = new ChargingActor(PlayerCharacter.Instance);
-            }, 0, 1);
-
-            Events.OnUpdateCamera.Register(e =>
-            {
-                var id = e.Camera.State.Id;
-                if (id == _lastCameraState)
-                    return;
-                _lastCameraState = id;
-                if (id == TESCameraStates.FirstPerson || id == TESCameraStates.ThirdPerson1 || id == TESCameraStates.ThirdPerson2)
-                    _chargingPlayer?.RefreshSpellParticleNodes();
-            });
-
-            Hook_ActiveEffect_CalculateDurationAndMagnitude();
-        }
-
-        /// <summary>
-        /// I assume this method gets called by the game whenever an actor (or object?) receives an ActiveEffect of some kind.
-        /// Except for some reason the ActiveEffect CX points to randomly turns into PathingTaskData sometimes???
-        /// May also just be NETFramework spazzing out, I dunno.
-        /// </summary>
-        private static void Hook_ActiveEffect_CalculateDurationAndMagnitude()
-        {
             Memory.WriteHook(new HookParameters()
             {
-                Address = Util.addr_CalculateDurationAndMagnitude,
+                Address = Utilities.Addresses.addr_CalculateDurationAndMagnitude,
                 IncludeLength = 0x20,
                 ReplaceLength = 0x20,
-                Before = ctx => // before? after? i don't know
+                Before = ctx =>
                 {
                     var activeEffectPtr = ctx.CX;
                     var offenderPtr = ctx.DX;
@@ -122,8 +78,7 @@ namespace SpellChargingPlugin
                     if (victimCharacter == null)
                         return;
 
-                    // 5 seconds between purges too long?
-                    // does purging even help with the spell randomly glitching out when the active effect pointer turns invalid for whatever reason?
+                    // Do this somewhere else
                     if (_activeEffectPurgeControlTimer.HasElapsed(5.0f, out var _))
                         ActiveEffectTracker.Instance.PurgeInvalids();
 
@@ -131,7 +86,6 @@ namespace SpellChargingPlugin
                     //float duration = Memory.ReadFloat(activeEffectPtr + 0x74);
                     float magnitude = Memory.ReadFloat(activeEffectPtr + 0x78);
 
-                    // If there's none, the ActiveEffect is being freshly applied, so no need to update.
                     // If there's more than one, something's fucked up.
                     var tracked = ActiveEffectTracker.Instance
                         .Tracked(activeEffectPtr)
@@ -149,8 +103,7 @@ namespace SpellChargingPlugin
                         return;
                     }
 
-                    // Damaging spells, despite having a positive magnitute, apparently switch to negative magnitudes on their effects?
-                    // Makes sense for "valuemodifier" types, I guess. This approach misbehaves sometimes.
+                    // Damaging spells, despite having a positive magnitute, switch to negative magnitudes on their effects?
                     if (magnitude < 0f)
                         tracked.Sign = -1;
                     Memory.WriteFloat(activeEffectPtr + 0x78, tracked.Magnitude * tracked.Sign, true);
@@ -162,21 +115,16 @@ namespace SpellChargingPlugin
 
         private static void Update(float elapsedSeconds)
         {
-            // Without this check, spell charging would continue while you are inside menus (without SkySouls or other un-pauser plugins)
-            var main = NetScriptFramework.SkyrimSE.Main.Instance;
-            if (main?.IsGamePaused != false)
+            if (NetScriptFramework.SkyrimSE.Main.Instance?.IsGamePaused != false)
                 return;
 
-            // update timers every frame
+            HotkeyBase.UpdateAll();
             _actorUpdateControlTimer.Update(elapsedSeconds);
             _activeEffectPurgeControlTimer.Update(elapsedSeconds);
 
+            // update logic according to the update frequency setting
             if (!_actorUpdateControlTimer.HasElapsed(_timePerUpdate, out var elapsed))
                 return;
-
-            // update logic according to the update frequency setting
-            HotkeyBase.UpdateAll();
-            Util.SimpleDeferredExecutor.Update(elapsed);
             _chargingPlayer.Update(elapsed);
         }
     }

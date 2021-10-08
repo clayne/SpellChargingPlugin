@@ -20,7 +20,7 @@ namespace SpellChargingPlugin.StateMachine.States
 
         protected override void OnUpdate(float elapsedSeconds)
         {
-            var handState = SpellHelper.GetSpellAndState(_context.Holder.Actor, _context.Slot);
+            var handState = SpellHelper.GetSpellAndState(_context.Owner.Character, _context.Slot);
             if (handState == null)
                 return;
 
@@ -35,11 +35,6 @@ namespace SpellChargingPlugin.StateMachine.States
                     TransitionTo(() => new Charging(_context));
                     break;
             }
-        }
-
-        protected override void OnEnterState()
-        {
-            _context.Reset();
         }
     }
 }

@@ -10,7 +10,7 @@ namespace SpellChargingPlugin.StateMachine.States
 {
     public class Charging : State<ChargingSpell>
     {
-        private Util.SimpleTimer _preChargeControlTimer = new Util.SimpleTimer();
+        private Utilities.SimpleTimer _preChargeControlTimer = new Utilities.SimpleTimer();
 
         public Charging(ChargingSpell context) : base(context)
         {
@@ -18,7 +18,7 @@ namespace SpellChargingPlugin.StateMachine.States
 
         protected override void OnUpdate(float elapsedSeconds)
         {
-            var handState = SpellHelper.GetSpellAndState(_context.Holder.Actor, _context.Slot);
+            var handState = SpellHelper.GetSpellAndState(_context.Owner.Character, _context.Slot);
             if (handState == null)
                 return;
 

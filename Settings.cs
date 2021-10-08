@@ -21,15 +21,6 @@ namespace SpellChargingPlugin
         }
         private Settings(){ }
 
-        [ConfigValue("OperationMode", "Overcharge Priority", 
-            "When a spell has both a Magnitude and a Duration (most Illusion spells, Flesh spells, etc.), which of the two should be charged?\n" +
-            "Options: Magnitude, Duration\n" +
-            "You can also switch between them ingame by pressing the hotkey.\n" +
-            "If a spell does not have the prioritized attribute, it will charge the other one.\n" +
-            "If a spell has neither (Clairvoyance and other script-based spells), nothing will happen and no magicka will be spent.")]
-        public string OperationMode { get; internal set; }
-            = "Magnitude";
-
         [ConfigValue("HotKey", "Hotkey", 
             "Key or key combination to access the various features depending on context.\n" +
             "Pressing the hotkey while idle (not charging or casting) will toggle Overcharge Priority (see above).\n" +
@@ -48,12 +39,12 @@ namespace SpellChargingPlugin
             "One charge will raise power by this amount in percent.\n" +
             "Note: 'Spell Power' also includes a spell's projectile speed, size, explosion radius, range and impact force (if it has any of those). Those will charge at a slower rate than the two main ones.")]
         public float PowerPerCharge { get; internal set; }
-            = 5.0f;
+            = 2.5f;
 
         [ConfigValue("MagickaPerCharge", "Magicka Per Charge", 
             "How much Magicka does one charge cost? This is a flat value, not a percentage!")]
         public float MagickaPerCharge { get; internal set; }
-            = 10f;
+            = 5f;
 
         [ConfigValue("SkillAffectsPower", "Skill affects Power",
             "Should your skill level in the spell's school further influence the power per charge?")]
@@ -100,7 +91,7 @@ namespace SpellChargingPlugin
             "Raise it up to your maximum FPS if you want the plugin to be more responsive and the particle effects to look a little smoother at a very small performance cost.\n" +
             "Should also probably increase this when you increase ChargesPerSecond and/or reduce AccelerationHalfTime.")]
         public uint UpdatesPerSecond { get; internal set; }
-            = 24;
+            = 48;
 
         [ConfigValue("MaxParticles", "Max Particles", 
             "Maximum number of particles to spawn per hand. Don't go too crazy.\n" +
@@ -118,22 +109,5 @@ namespace SpellChargingPlugin
             "Write debug output to file. Disable unless you experience issues.")]
         public bool LogDebugMessages { get; internal set; }
             = true;
-
-        [ConfigValue("ArtObjectMagnitude", "ArtObject for Magnitude", 
-            "The FormID of the ARTO that gets attached when in 'Magnitude' overcharge mode. Set to 0 to disable.\n" +
-            "Set to 0 to disable the effect.", ConfigEntryFlags.PreferHex | ConfigEntryFlags.Hidden)]
-        public uint ArtObjectMagnitude { get; internal set; }
-            = 0x74795;
-
-        [ConfigValue("ArtObjectDuration", "ArtObject for Duration", 
-            "The FormID of the ARTO that gets attached when in 'Duration' overcharge mode.\n" +
-            "Set to 0 to disable the effect.", ConfigEntryFlags.PreferHex | ConfigEntryFlags.Hidden)]
-        public uint ArtObjectDuration { get; internal set; }
-            = 0x6DE86;
-
-        [ConfigValue("AutoCleanupDelay", "Auto-Cleanup Delay",
-            "Best to leave this alone.", ConfigEntryFlags.Hidden)]
-        public float AutoCleanupDelay { get; internal set; }
-            = 5.0f;
     }
 }

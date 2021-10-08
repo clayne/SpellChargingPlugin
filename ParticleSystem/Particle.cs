@@ -20,7 +20,7 @@ namespace SpellChargingPlugin.ParticleSystem
         {
             if (string.IsNullOrEmpty(nifPath))
                 return null;
-            var obj = Util.LoadNif(nifPath).Clone() as NiAVObject;
+            var obj = Utilities.Nif.LoadNif(nifPath).Clone() as NiAVObject;
             //DebugHelper.Print($"Particle obj: {obj}");
             Particle ret = new Particle()
             {

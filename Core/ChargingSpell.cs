@@ -16,87 +16,57 @@ namespace SpellChargingPlugin.Core
 {
     public class ChargingSpell : IStateHolder<ChargingSpell>
     {
-        public ChargingActor Holder { get; }
-        public SpellItem Spell { get; }
-        public EquippedSpellSlots Slot { get; }
+        public sealed class ChargingSpellCreationArgs
+        {
+            public SpellItem Spell { get; set; }
+            public ChargingActor Owner { get; set; }
+            public EquippedSpellSlots Slot { get; set; }
+        }
 
+        public ChargingActor Owner { get; private set; }
+        public SpellItem Spell { get; private set; }
+        public EquippedSpellSlots Slot { get; private set; }
         public State<ChargingSpell> CurrentState { get; set; }
         public bool IsTwoHanded => Spell.EquipSlot?.FormId == 0x00013F45;
-        public int ChargeLevel { get; private set; } = 0;
-        public bool CanCharge { get; }
 
-        private NiNode _particleParentNode;
+        private ParticleEngine _particleEngine;
+        private int _chargeLevel;
+        private bool _canCharge;
 
-        private readonly ParticleEngine _particleEngine = new ParticleEngine();
-        private List<Particle> _spellParticles;
+        private ChargingSpell(){}
 
-        public ChargingSpell(ChargingActor holder, SpellItem spell, EquippedSpellSlots slot)
+        public static ChargingSpell Create(ChargingSpellCreationArgs args)
         {
-            Holder = holder;
-            Spell = spell;
-            Slot = slot;
-
-            // if the spell cannot (or should not) be charged, don't bother with setup
-            CanCharge = SpellHelper.CanSpellBeCharged(spell);
-            DebugHelper.Print($"[ChargingSpell:{spell.Name}] {(!CanCharge ? "Can't" : "Can")} be charged.");
-            if (!CanCharge)
-                return;
-
-            // dirty way to pre-cache base power
-            foreach (var eff in spell.Effects)
+            var ret = new ChargingSpell()
             {
+                Owner = args.Owner,
+                Spell = args.Spell,
+                Slot = args.Slot,
+                _canCharge = SpellHelper.CanSpellBeCharged(args.Spell),
+                _chargeLevel = 0,
+            };
+            DebugHelper.Print($"[ChargingSpell:{args.Spell.Name}] {(!ret._canCharge ? "Can't" : "Can")} be charged.");
+            if (!ret._canCharge)
+                return ret;
+
+            // cache base power
+            foreach (var eff in args.Spell.Effects)
                 SpellHelper.GetBasePower(eff);
-            }
 
-            RefreshParticleNode();
-
-            // TODO: this is stupid, cache it or something
-            DebugHelper.Print($"[ChargingSpell:{spell.Name}] Load Base Particle(s)");
-            _spellParticles = spell.Effects.SelectMany(eff =>
-            {
-                return new List<string>()
-                {
-                    eff.Effect?.MagicProjectile?.ModelName?.Text,  // may look stupid with some spells
-                    eff.Effect?.CastingArt?.ModelName?.Text,       // this usually works best, but some spells have bad or no (visible) casting art
-                    eff.Effect?.HitEffectArt?.ModelName?.Text,     // probably looks dumb
-                }
-                .Where(s => string.IsNullOrEmpty(s) == false);
-            }).Distinct().Take((int)Settings.Instance.ParticleLayers).Select(nif => Particle.Create(nif)).ToList();
-
-            CurrentState = new StateMachine.States.Idle(this);
-        }
-
-        /// <summary>
-        /// This will only affect newly spawned particles and most likely causes visual glitches.
-        /// </summary>
-        public void RefreshParticleNode()
-        {
-            _particleParentNode = GetNode(Slot) as NiNode;
-        }
-
-        // TODO: Maybe find a better fitting node for the twohanded spells
-        private NiAVObject GetNode(EquippedSpellSlots slot)
-        {
-            var plrRootNode = Holder.Actor.Node;
-            // This may be possible?
-            if (plrRootNode == null)
-                return null;
-            if (IsTwoHanded)
-                return plrRootNode.LookupNodeByName("NPC Head [Head]");
-            switch (slot)
-            {
-                case EquippedSpellSlots.LeftHand:
-                    return plrRootNode.LookupNodeByName("NPC L MagicNode [LMag]");
-                case EquippedSpellSlots.RightHand:
-                    return plrRootNode.LookupNodeByName("NPC R MagicNode [RMag]");
-                default:
-                    return plrRootNode;
-            }
+            ret._particleEngine =
+                ParticleEngine.Create(
+                    new ParticleEngine.ParticleEngineCreationArgs()
+                    {
+                        Limit = (int)Settings.Instance.MaxParticles,
+                        ParticleBatchFactory = ret.CreateParticles,
+                    });
+            ret.CurrentState = new StateMachine.States.Idle(ret);
+            return ret;
         }
 
         internal void Update(float elapsedSeconds)
         {
-            if (!CanCharge)
+            if (!_canCharge)
                 return;
             _particleEngine.Update(elapsedSeconds);
             CurrentState.Update(elapsedSeconds);
@@ -107,18 +77,30 @@ namespace SpellChargingPlugin.Core
         /// </summary>
         public void AddCharge()
         {
-            ++ChargeLevel;
-            if (Settings.Instance.ChargesPerParticle > 0 && ChargeLevel > 0 && ChargeLevel % Settings.Instance.ChargesPerParticle == 0)
-                AddParticleForCharge();
-            SpellPowerManager.Instance.IncreasePower(this, ChargeLevel);
+            ++_chargeLevel;
+            _particleEngine.SpawnParticle();
+            SpellPowerManager.Instance.IncreasePower(this, _chargeLevel);
         }
 
-        private void AddParticleForCharge()
+        public void Refund()
         {
-            if (_particleEngine.ParticleCount >= Settings.Instance.MaxParticles)
+            if (Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration)
                 return;
+            float toRefund = _chargeLevel * Settings.Instance.MagickaPerCharge;
+            Owner.Character.RestoreActorValue(ActorValueIndices.Magicka, toRefund);
+        }
 
-            int localParticleCount = ChargeLevel / (int)Settings.Instance.ChargesPerParticle;
+        public void Reset()
+        {
+            _chargeLevel = 0;
+            _particleEngine.Clear();
+            SpellPowerManager.Instance.ResetSpellModifiers(Spell);
+            SpellPowerManager.Instance.ResetSpellPower(Spell);
+        }
+
+        private IEnumerable<Particle> CreateParticles()
+        {
+            int localParticleCount = _chargeLevel / (int)Settings.Instance.ChargesPerParticle;
             int distanceFactor = (int)Math.Sqrt(localParticleCount);
 
             float r1 = (8f + 1f * distanceFactor) * (Randomizer.Roll(0.5) ? -1f : 1f);
@@ -141,17 +123,14 @@ namespace SpellChargingPlugin.Core
 
             var translate = new Vector3D(r1, r2, r3 * 0.8f);
 
-            foreach (var p in _spellParticles)
+            return Utilities.Visuals.GetParticlesFromSpell(Spell).Select(p =>
             {
-                if (_particleEngine.ParticleCount >= Settings.Instance.MaxParticles)
-                    return;
-
                 Particle newParticle = p
                     .Clone()
                     .SetScale(scale)
                     .SetFade(fade)
                     .Translate(translate)
-                    .AttachToNode(_particleParentNode);
+                    .AttachToNode(Utilities.Visuals.GetParticleSpawnNode(this) as NiNode);
 
                 newParticle.AddBehavior(new OrbitBehavior(newParticle, new Vector3D(), new Vector3D(a1, a2, a3), 1f));
                 newParticle.AddBehavior(new AimForwardBehavior(newParticle));
@@ -160,29 +139,8 @@ namespace SpellChargingPlugin.Core
                 newParticle.AddBehavior(new FadeBehavior(newParticle, 1.0f)
                 { Active = () => !(CurrentState is StateMachine.States.OverchargingBase) });
 
-                _particleEngine.Add(newParticle);
-            }
-        }
-
-        public void Refund()
-        {
-            if (Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration)
-                return;
-            float toRefund = ChargeLevel * Settings.Instance.MagickaPerCharge;
-            Holder.Actor.RestoreActorValue(ActorValueIndices.Magicka, toRefund);
-        }
-
-        public void Clean()
-        {
-            Reset();
-            _particleEngine.Clear();
-            SpellPowerManager.Instance.ResetSpellModifiers(Spell);
-            SpellPowerManager.Instance.ResetSpellPower(Spell);
-        }
-
-        public void Reset()
-        {
-            ChargeLevel = 0;
+                return newParticle;
+            });
         }
     }
 }

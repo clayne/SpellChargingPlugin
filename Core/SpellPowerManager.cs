@@ -25,7 +25,6 @@ namespace SpellChargingPlugin.Core
         public void IncreasePower(ChargingSpell chargingSpell, int chargeLevel)
         {
             var spell = chargingSpell.Spell;
-            var source = chargingSpell.Holder;
             bool hasMag = SpellHelper.HasMagnitude(spell);
             bool hasDur = SpellHelper.HasDuration(spell);
             var growth = Settings.Instance.PowerPerCharge / 100f;
@@ -33,7 +32,7 @@ namespace SpellChargingPlugin.Core
             {
                 var school = spell.Effects.FirstOrDefault()?.Effect?.AssociatedSkill;
                 if (school != null)
-                    growth *= (1f + chargingSpell.Holder.Actor.GetActorValue(school.Value) / 100f);
+                    growth *= (1f + chargingSpell.Owner.Character.GetActorValue(school.Value) / 100f);
             }
             float adjustedGrowth = growth / ((float)Math.Sqrt(chargeLevel) + 1f);
 
@@ -42,21 +41,10 @@ namespace SpellChargingPlugin.Core
                 var basePower = GetBasePower(eff);
                 EffectPower mod = GetModifiedPower(eff);
 
-                switch (source.Mode)
-                {
-                    case ChargingActor.OperationMode.Magnitude:
-                        if (hasMag)
-                            mod.Magnitude += basePower.Magnitude * growth;
-                        else if (hasDur)
-                            mod.Duration += basePower.Duration * growth;
-                        break;
-                    case ChargingActor.OperationMode.Duration:
-                        if (hasDur)
-                            mod.Duration += basePower.Duration * growth;
-                        else if (hasMag)
-                            mod.Magnitude += basePower.Magnitude * growth;
-                        break;
-                }
+                if(hasMag) 
+                    mod.Magnitude += basePower.Magnitude * growth;
+                else if(hasDur) 
+                    mod.Duration += basePower.Duration * growth;
 
                 mod.Area += basePower.Area * adjustedGrowth;
                 if (mod.CollisionRadius != null && mod.CollisionRadius < basePower.CollisionRadius * 3f) // cap at 3x to prevent fireballs from blowing up in your face
@@ -80,11 +68,7 @@ namespace SpellChargingPlugin.Core
         /// <param name="chargingSpell"></param>
         public void ApplyModifiers(ChargingSpell chargingSpell)
         {
-            ApplyModifiers(chargingSpell.Spell, chargingSpell);
-        }
-        public void ApplyModifiers(SpellItem spell, ChargingSpell chargingSpell = null)
-        {
-            foreach (var eff in spell.Effects)
+            foreach (var eff in chargingSpell.Spell.Effects)
             {
                 var mod = SpellHelper.GetModifiedPower(eff);
                 ApplyModPower(eff, mod);
@@ -94,7 +78,7 @@ namespace SpellChargingPlugin.Core
                 ApplyModForce(eff, mod);
 
                 if (chargingSpell != null && chargingSpell.Spell.SpellData.CastingType == EffectSettingCastingTypes.Concentration)
-                    ApplyModActiveEffects(eff, mod, chargingSpell.Holder);
+                    ApplyModActiveEffects(eff, mod, chargingSpell.Owner);
             }
         }
 
@@ -233,7 +217,7 @@ namespace SpellChargingPlugin.Core
             var myActiveEffects = ActiveEffectTracker.Instance
                 .Tracked()
                 .ForBaseEffect(myFID)
-                .FromOffender(source.Actor.Cast<Character>())
+                .FromOffender(source.Character.Cast<Character>())
                 .Where(e => e.Invalid == false)
                 .ToArray();
             if (myActiveEffects.Length == 0)
@@ -244,7 +228,7 @@ namespace SpellChargingPlugin.Core
             {
                 try
                 {
-                    if (MemoryObject.FromAddress<ActiveEffect>(victim.Effect) is ActiveEffect activeEffect)
+                    if (MemoryObject.FromAddress<ActiveEffect>(victim.EffectPtr) is ActiveEffect activeEffect)
                     {
                         //DebugHelper.Print($"[SpellPowerManager:{eff.Effect.Name}] Update on Victim {victim.Me.ToHexString()} MAG: {victim.Magnitude} -> {eff.Magnitude}");
 
@@ -252,14 +236,14 @@ namespace SpellChargingPlugin.Core
                         victim.Duration = modifiedPower.Duration;
 
                         Memory.InvokeCdecl(
-                            Util.addr_CalculateDurationAndMagnitude,    //void __fastcall sub(
-                            victim.Effect,                              //  ActiveEffect * a1, 
-                            victim.Offender,                            //  Character * a2, 
-                            victim.Me);                                 //  MagicTarget * a3);
+                            Utilities.Addresses.addr_CalculateDurationAndMagnitude, //void __fastcall sub(
+                            victim.EffectPtr,                                       //  ActiveEffect * a1, 
+                            victim.OffenderPtr,                                     //  Character * a2, 
+                            victim.SelfPtr);                                        //  MagicTarget * a3);
                     }
                     else
                     {
-                        DebugHelper.Print($"[SpellPowerManager:{eff.Effect.Name}] Invalid ActiveEffect pointer {victim.Effect.ToHexString()}!");
+                        DebugHelper.Print($"[SpellPowerManager:{eff.Effect.Name}] Invalid ActiveEffect pointer {victim.EffectPtr.ToHexString()}!");
                         victim.Invalid = true;
                     }
                 }

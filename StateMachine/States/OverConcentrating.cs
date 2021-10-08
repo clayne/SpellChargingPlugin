@@ -13,7 +13,7 @@ namespace SpellChargingPlugin.StateMachine.States
 
         protected override void OnUpdate(float elapsedSeconds)
         {
-            var handState = SpellHelper.GetSpellAndState(_context.Holder.Actor, _context.Slot);
+            var handState = SpellHelper.GetSpellAndState(_context.Owner.Character, _context.Slot);
 
             switch (handState?.State)
             {
@@ -24,7 +24,7 @@ namespace SpellChargingPlugin.StateMachine.States
                     _chargingTimer.Update(elapsedSeconds * _accelerationFactor);
                     if (!_chargingTimer.HasElapsed(_inverseChargesPerSecond, out _))
                         return;
-                    if (!_context.Holder.TryDrainMagicka(Settings.Instance.MagickaPerCharge))
+                    if (!_context.Owner.TryConsumeMagicka(Settings.Instance.MagickaPerCharge))
                         return;
                     _context.AddCharge();
                     SpellPowerManager.Instance.ApplyModifiers(_context);

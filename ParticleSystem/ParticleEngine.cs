@@ -13,10 +13,16 @@ namespace SpellChargingPlugin.ParticleSystem
 {
     public sealed class ParticleEngine
     {
-        public int ParticleCount => _activeParticles.Count;
+        public sealed class ParticleEngineCreationArgs
+        {
+            public int Limit { get; internal set; }
+            public Func<IEnumerable<Particle>> ParticleBatchFactory { get; internal set; }
+        }
 
+        public int _particleLimit;
+        private Func<IEnumerable<Particle>> _particlesFactory;
         private readonly HashSet<Particle> _activeParticles = new HashSet<Particle>();
-        private readonly Util.SimpleTimer _cleanUpTimer = new Util.SimpleTimer();
+        private readonly Utilities.SimpleTimer _cleanUpTimer = new Utilities.SimpleTimer();
 
         public void Clear()
         {
@@ -27,10 +33,14 @@ namespace SpellChargingPlugin.ParticleSystem
             _activeParticles.Clear();
         }
 
-        public void Add(Particle newParticle)
+        public void SpawnParticle()
         {
-            _activeParticles.Add(newParticle);
+            if (_activeParticles.Count >= _particleLimit)
+                return;
+            foreach (var p in _particlesFactory())
+                _activeParticles.Add(p);
         }
+
 
         public void Update(float elapsedSeconds)
         {
@@ -48,6 +58,16 @@ namespace SpellChargingPlugin.ParticleSystem
             // This really doesn't need to happen all that often, I think
             if (_cleanUpTimer.HasElapsed(1.5f, out _))
                 _activeParticles.RemoveWhere(e => e.Delete);
+        }
+
+        public static ParticleEngine Create(ParticleEngineCreationArgs args)
+        {
+            var ret = new ParticleEngine()
+            {
+                _particleLimit = args.Limit,
+                _particlesFactory = args.ParticleBatchFactory,
+            };
+            return ret;
         }
     }
 }
