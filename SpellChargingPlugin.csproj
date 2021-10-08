@@ -53,13 +53,13 @@
     <Compile Include="Utilities\SimpleTimer.cs" />
     <Compile Include="Utilities\Nif.cs" />
     <Compile Include="Utilities\Addresses.cs" />
-    <Compile Include="CachedFormList.cs" />
+    <Compile Include="Utilities\CachedFormList.cs" />
     <Compile Include="ConcurrentSet.cs" />
     <Compile Include="Core\ActiveEffectTracker.cs" />
     <Compile Include="Core\ChargingActor.cs" />
     <Compile Include="Core\ChargingSpell.cs" />
     <Compile Include="Core\SpellPowerManager.cs" />
-    <Compile Include="Hotkey.cs" />
+    <Compile Include="Utilities\Hotkey.cs" />
     <Compile Include="ParticleSystem\Behaviors\BreatheBehavior.cs" />
     <Compile Include="ParticleSystem\Behaviors\FadeBehavior.cs" />
     <Compile Include="ParticleSystem\Behaviors\AimForwardBehavior.cs" />

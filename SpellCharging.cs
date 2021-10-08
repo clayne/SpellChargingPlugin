@@ -118,7 +118,7 @@ namespace SpellChargingPlugin
             if (NetScriptFramework.SkyrimSE.Main.Instance?.IsGamePaused != false)
                 return;
 
-            HotkeyBase.UpdateAll();
+            Utilities.HotkeyBase.UpdateAll();
             _actorUpdateControlTimer.Update(elapsedSeconds);
             _activeEffectPurgeControlTimer.Update(elapsedSeconds);
 

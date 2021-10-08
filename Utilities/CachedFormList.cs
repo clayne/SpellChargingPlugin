@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SpellChargingPlugin
+namespace SpellChargingPlugin.Utilities
 {
     /// <summary>
     /// Cached form list for lookups later.

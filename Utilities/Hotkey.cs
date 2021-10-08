@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SpellChargingPlugin
+namespace SpellChargingPlugin.Utilities
 {
     /// <summary>
     /// Copied from https://www.nexusmods.com/skyrimspecialedition/mods/42906

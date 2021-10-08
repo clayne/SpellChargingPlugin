@@ -2,6 +2,7 @@
 using NetScriptFramework.SkyrimSE;
 using NetScriptFramework.Tools;
 using SpellChargingPlugin.StateMachine;
+using SpellChargingPlugin.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
